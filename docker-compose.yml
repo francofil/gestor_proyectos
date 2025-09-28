@@ -8,6 +8,14 @@ services:
       - .env
     depends_on:
       - db
+    deploy:
+      resources:
+        limits:             #ESCALADO VERTICAL (Dar mas recursos al contenedor, no mas instancias)
+          cpus: "2.0"       # hasta 2 cores
+          memory: 1024M     # hasta 1 GB RAM
+        reservations:
+          cpus: "1.0"       # pide al menos 1 core
+          memory: 512M      # pide al menos 512 MB RAM
 
   db:
     image: postgres:14
@@ -20,8 +28,16 @@ services:
     ports:
       - "5432:5432"
     volumes:
-     - pgdata:/var/lib/postgresql/data
-     - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    deploy:
+      resources:
+        limits:             #ESCALADO VERTICAL (Dar mas recursos al contenedor, no mas instancias)
+          cpus: "1.0"       # hasta 1 core
+          memory: 512M      # hasta 512 MB RAM
+        reservations:
+          cpus: "0.5"       # pide al menos medio core
+          memory: 256M      # pide al menos 256 MB RAM
 
 volumes:
   pgdata:
