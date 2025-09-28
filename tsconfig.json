@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    /* 🔹 Salida de compilación */
+    "target": "es2020",                /* Versión de JS de salida */
+    "module": "commonjs",              /* Usa CommonJS (require/module.exports) */
+    "moduleResolution": "node",        /* Resolución de módulos estilo Node */
+    "rootDir": "./src",                /* Carpeta donde está tu código fuente */
+    "outDir": "./dist",                /* Carpeta donde se compila el JS */
+
+    /* 🔹 Configuración de compatibilidad */
+    "esModuleInterop": true,           /* Permite usar 'import express from "express"' */
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,              /* Ignora chequeo de types de dependencias */
+
+    /* 🔹 Strict mode (buenas prácticas) */
+    "strict": true,                    /* Habilita todas las comprobaciones estrictas */
+    "noImplicitAny": true,             /* Obliga a tipar bien todo */
+    "strictNullChecks": true,          /* Chequea null/undefined correctamente */
+
+    /* 🔹 Otros */
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true                  /* Genera mapas para debuggear en TS */
+  },
+  "include": ["src"],                  /* Archivos a incluir */
+  "exclude": ["node_modules", "dist"]  /* Ignorar node_modules y compilados */
+}
