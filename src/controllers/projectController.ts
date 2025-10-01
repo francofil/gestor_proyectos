@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Project from '../models/project';
+import Task from '../models/task';
 
 export class ProjectController {
   static async getAll(req: Request, res: Response): Promise<void> {
@@ -60,6 +61,84 @@ export class ProjectController {
         return;
       }
       res.status(204).send();
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  // Obtener todas las tareas de un proyecto
+  static async getProjectTasks(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      
+      // Verificar que el proyecto existe
+      const project = await Project.findByPk(id);
+      if (!project) {
+        res.status(404).json({ error: 'Proyecto no encontrado' });
+        return;
+      }
+
+      // Obtener todas las tareas del proyecto
+      const tasks = await Task.findAll({
+        where: { projectId: id }
+      });
+
+      res.json({
+        project: {
+          id: project.id,
+          name: project.name,
+          description: project.description
+        },
+        tasks: tasks,
+        totalTasks: tasks.length
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  // Obtener todas las tareas pendientes (no completadas) de un proyecto
+  static async getProjectPendingTasks(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      
+      // Verificar que el proyecto existe
+      const project = await Project.findByPk(id);
+      if (!project) {
+        res.status(404).json({ error: 'Proyecto no encontrado' });
+        return;
+      }
+
+      // Obtener tareas pendientes del proyecto
+      const pendingTasks = await Task.findAll({
+        where: { 
+          projectId: id,
+          completed: false 
+        }
+      });
+
+      // Obtener el total de tareas para calcular progreso
+      const totalTasks = await Task.count({
+        where: { projectId: id }
+      });
+
+      const completedTasks = totalTasks - pendingTasks.length;
+      const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      res.json({
+        project: {
+          id: project.id,
+          name: project.name,
+          description: project.description
+        },
+        pendingTasks: pendingTasks,
+        summary: {
+          totalTasks: totalTasks,
+          completedTasks: completedTasks,
+          pendingTasks: pendingTasks.length,
+          progressPercentage: progressPercentage
+        }
+      });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
