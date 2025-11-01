@@ -6,43 +6,29 @@ export const sequelizeMaster = new Sequelize(
   process.env.POSTGRES_USER || 'postgres',
   process.env.POSTGRES_PASSWORD || '1234',
   {
-    host: process.env.DB_MASTER_HOST || 'localhost',
-    port: Number(process.env.DB_MASTER_PORT) || 5432,
+    host: process.env.DB_HOST_MASTER || 'localhost',
+    port: Number(process.env.DB_PORT_MASTER) || 5432,
     dialect: 'postgres',
     retry: {
       max: 10
-    },
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    },
-    logging: console.log
+    }
   }
 );
 
-// Conexión REPLICA (lectura - Queries)
+// CQRS - Replica DB (lectura)
 export const sequelizeReplica = new Sequelize(
   process.env.DB_NAME || 'gestor_proyectos',
   process.env.POSTGRES_USER || 'postgres',
   process.env.POSTGRES_PASSWORD || '1234',
   {
-    host: process.env.DB_REPLICA_HOST || 'localhost',
-    port: Number(process.env.DB_REPLICA_PORT) || 5432,
+    host: process.env.DB_HOST_REPLICA || 'localhost',
+    port: Number(process.env.DB_PORT_REPLICA) || 5433,
     dialect: 'postgres',
     retry: {
       max: 10
-    },
-    pool: {
-      max: 10,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    },
-    logging: console.log
+    }
   }
 );
 
-// Mantener compatibilidad con código existente
+// Alias para compatibilidad con models existentes
 export const sequelize = sequelizeMaster;

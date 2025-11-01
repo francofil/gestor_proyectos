@@ -1,53 +1,29 @@
 #!/bin/bash
 set -e
 
-echo "🔄 Configurando PostgreSQL Replica..."
-
-# Esperar a que el master esté disponible
-echo "⏳ Esperando a que el master esté listo..."
-until PGPASSWORD=${POSTGRES_PASSWORD} psql -h db-master -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c '\q' 2>/dev/null; do
-  echo "   Master no está listo aún, esperando 3 segundos..."
-  sleep 3
+# Esperar a que el master esté listo
+echo "Esperando al master..."
+until pg_isready -h db-master -U "$POSTGRES_USER"; do
+  sleep 2
 done
-echo "✅ Master está disponible"
 
-# Verificar si ya está configurada la réplica
-if [ -f "$PGDATA/standby.signal" ]; then
-    echo "ℹ️  La réplica ya está configurada"
-    exit 0
-fi
+# Detener PostgreSQL si está corriendo
+pg_ctl -D "$PGDATA" stop || true
 
-# Detener postgres si está corriendo
-echo "🛑 Deteniendo PostgreSQL temporal..."
-pg_ctl -D "$PGDATA" -m fast -w stop 2>/dev/null || true
-
-# Limpiar datos existentes
-echo "🧹 Limpiando datos existentes..."
+# Limpiar el directorio de datos
 rm -rf "$PGDATA"/*
 
-# Crear backup base desde el master
-echo "📦 Creando backup desde master..."
-PGPASSWORD=replicator1234 pg_basebackup \
-  -h db-master \
-  -D "$PGDATA" \
-  -U replicator \
-  -v \
-  -P \
-  --wal-method=stream
+# Realizar backup base desde el master
+echo "Realizando pg_basebackup desde master..."
+PGPASSWORD="$POSTGRES_PASSWORD" pg_basebackup -h db-master -D "$PGDATA" -U replicator -v -P -W -R
 
-# Crear archivo de configuración de standby
-echo "🔗 Configurando como standby (solo lectura)..."
-cat > "$PGDATA/standby.signal" <<EOF
-standby_mode = 'on'
-EOF
+# Configurar modo de solo lectura en postgresql.conf
+echo "default_transaction_read_only = on" >> "$PGDATA/postgresql.conf"
+echo "hot_standby = on" >> "$PGDATA/postgresql.conf"
 
-# Configurar conexión al master
-cat >> "$PGDATA/postgresql.conf" <<EOF
+# Configurar logging para trackear queries
+echo "log_statement = 'all'" >> "$PGDATA/postgresql.conf"
+echo "log_destination = 'stderr'" >> "$PGDATA/postgresql.conf"
+echo "logging_collector = off" >> "$PGDATA/postgresql.conf"
 
-# Configuración de Réplica
-primary_conninfo = 'host=db-master port=5432 user=replicator password=replicator1234 application_name=replica1'
-hot_standby = on
-hot_standby_feedback = on
-EOF
-
-echo "✅ Réplica configurada correctamente (SOLO LECTURA)"
+echo "Replica configurada correctamente como solo lectura con logging habilitado"
