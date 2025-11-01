@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 
 -- =======================
--- Vista Materializada con estadísticas complejas
+-- Vista Materializada con estadísticas 
 -- =======================
 CREATE MATERIALIZED VIEW project_statistics AS
 SELECT 
