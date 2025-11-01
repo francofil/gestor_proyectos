@@ -1,6 +1,6 @@
 import { Sequelize } from 'sequelize';
 
-// CQRS - Master DB (escritura)
+// Conexión MASTER (escritura - Commands)
 export const sequelizeMaster = new Sequelize(
   process.env.DB_NAME || 'gestor_proyectos',
   process.env.POSTGRES_USER || 'postgres',
