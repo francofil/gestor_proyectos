@@ -12,6 +12,7 @@ El objetivo es demostrar:
 - **ACID y transacciones:** operaciones atómicas garantizadas por PostgreSQL y Sequelize.
 - **CQRS (Command Query Responsibility Segregation):** separación de lecturas y escrituras usando replicación PostgreSQL Master-Replica.
 - **Retry Pattern:** reintentos automáticos con backoff exponencial para manejar fallos transitorios de base de datos.
+- **External Configuration Store:** configuración centralizada en archivo JSON externo con recarga en caliente.
 
 ---
 
@@ -72,7 +73,15 @@ DB_PORT=5432
 DB_NAME=gestor_proyectos
 ```
 
-### 3. Levantar contenedores
+### 3. Configurar archivo de configuración externa
+
+```bash
+cp config.example.json config.json
+```
+
+Este archivo contiene toda la configuración del sistema y se puede modificar **en caliente** (sin reiniciar).
+
+### 4. Levantar contenedores
 
 ```bash
 docker-compose up --build
@@ -82,7 +91,7 @@ docker-compose up --build
 - **PostgreSQL Master** (escritura): puerto `5432`
 - **PostgreSQL Replica** (lectura): puerto `5433`
 
-### 4. Datos iniciales
+### 5. Datos iniciales
 
 El contenedor de Postgres ejecuta automáticamente `docker/init.sql` en la primera ejecución:
 
@@ -298,7 +307,105 @@ docker-compose start db-master
 
 ---
 
-## Autores
+## ⚙️ External Configuration Store
+
+Este proyecto implementa el patrón **External Configuration Store** para gestionar la configuración de forma centralizada y permitir **cambios en caliente** sin reiniciar la aplicación.
+
+### ✨ Características
+
+- **Configuración centralizada**: Toda la config en un archivo `config.json`
+- **Recarga en caliente**: Los cambios se aplican en el siguiente request
+- **Sin reinicio**: Modifica configuración mientras la app corre
+- **API de gestión**: Endpoints para ver y actualizar la config
+
+### 📁 Estructura del archivo config.json
+
+```json
+{
+  "database": {
+    "master": {
+      "host": "db-master",
+      "port": 5432,
+      "database": "gestor_proyectos",
+      "user": "postgres",
+      "password": "1234"
+    },
+    "replica": {
+      "host": "db-replica",
+      "port": 5432,
+      "database": "gestor_proyectos",
+      "user": "postgres",
+      "password": "1234"
+    }
+  },
+  "server": {
+    "port": 3000,
+    "environment": "development"
+  },
+  "retry": {
+    "maxRetries": 3,
+    "initialDelay": 1000,
+    "backoffMultiplier": 2
+  },
+  "features": {
+    "enableLogging": true,
+    "enableCache": false
+  }
+}
+```
+
+### 🔧 Endpoints de Configuración
+
+```bash
+# Ver configuración actual
+curl http://localhost:3000/config
+
+# Actualizar configuración (ejemplo: cambiar maxRetries)
+curl -X PUT http://localhost:3000/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "database": { ... },
+    "server": { "port": 3000, "environment": "production" },
+    "retry": { "maxRetries": 5, "initialDelay": 2000, "backoffMultiplier": 2 },
+    "features": { "enableLogging": false, "enableCache": true }
+  }'
+```
+
+### 🧪 Probar Cambios en Caliente
+
+```bash
+# 1. Hacer una petición y ver los logs
+curl http://localhost:3000/users
+
+# 2. Deshabilitar logging editando config.json
+# Cambiar "enableLogging": false
+
+# 3. Hacer otra petición - ya no verás logs
+curl http://localhost:3000/users
+
+# 4. Cambiar maxRetries a 5
+# Cambiar "maxRetries": 5
+
+# 5. Los nuevos requests usarán 5 reintentos
+```
+
+### 💡 Cómo Funciona
+
+1. **Middleware**: Cada request ejecuta `configReloadMiddleware`
+2. **Lectura**: Se lee `config.json` desde el disco
+3. **Aplicación**: La nueva config se usa inmediatamente
+4. **Sin caché**: No se almacena en memoria, siempre fresca
+
+### ✅ Ventajas
+
+- Ajustar comportamiento sin deployment
+- Testing de diferentes configuraciones
+- Rollback instantáneo de cambios
+- Ideal para demos y desarrollo
+
+---
+
+## 👥 Autores
 
 - Joaquín Ballara
 - Franco Filardi

@@ -20,6 +20,7 @@ WORKDIR /app
 COPY --from=build /app/package*.json ./
 RUN npm install --only=production
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/config.json ./config.json
 
 # Exponer puerto
 EXPOSE 3000
