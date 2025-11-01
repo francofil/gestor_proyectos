@@ -1,22 +1,28 @@
 import express, { Application, Request, Response } from 'express';
 import { sequelizeMaster, sequelizeReplica } from './config/db';
+import { configReloadMiddleware } from './middleware/configReload';
+import { getConfig } from './config/externalConfig';
 
 // Rutas
 import userRoutes from './routes/userRoutes';
 import projectRoutes from './routes/projectsRoutes';
 import taskRoutes from './routes/taskRoutes';
 import statisticsRoutes from './routes/statisticsRoutes';
+import configRoutes from './routes/configRoutes';
 
 const app: Application = express();
-const PORT = 3000;
 
 app.use(express.json());
+
+// Middleware para recargar configuración en cada request
+app.use(configReloadMiddleware);
 
 // Endpoints
 app.use('/users', userRoutes);
 app.use('/projects', projectRoutes);
 app.use('/tasks', taskRoutes);
 app.use('/statistics', statisticsRoutes);
+app.use('/config', configRoutes);
 
 // Test
 app.get('/', (req: Request, res: Response) => {
@@ -66,7 +72,11 @@ async function connectWithRetry(maxRetries = 10, delay = 3000) {
 // Conectar ambas bases de datos
 connectWithRetry()
   .then(() => {
-    app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`));
+    const config = getConfig();
+    app.listen(config.server.port, () => {
+      console.log(`🚀 Servidor corriendo en http://localhost:${config.server.port}`);
+      console.log(`📋 Configuración externa cargada desde config.json`);
+    });
   })
   .catch((err: Error) => {
     console.error('❌ Error fatal al conectar la BD:', err);
