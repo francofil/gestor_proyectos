@@ -95,22 +95,29 @@ await sequelize.transaction(async (t) => {
 
 ---
 
-## 📈 Escalabilidad vertical
-El `docker-compose.yml` define límites y reservas de recursos:  
+## 🔄 CQRS con Master-Replica
 
-```yaml
-deploy:
-  resources:
-    limits:
-      cpus: "2.0"
-      memory: 1024M
-    reservations:
-      cpus: "1.0"
-      memory: 512M
+Se implementó el patrón **CQRS (Command Query Responsibility Segregation)** con **replicación streaming de PostgreSQL**:
+
+- **Base de datos MASTER (puerto 5432):** Maneja todas las operaciones de **escritura** (Commands: INSERT, UPDATE, DELETE)
+- **Base de datos REPLICA (puerto 5433):** Maneja todas las operaciones de **lectura** (Queries: SELECT) en modo **solo lectura**
+
+### ✅ Ventajas
+- **Separación de responsabilidades:** Escrituras y lecturas aisladas
+- **Escalabilidad:** Múltiples replicas pueden atender lecturas sin afectar escrituras
+- **Alta disponibilidad:** Si el master falla, la replica puede promovarse
+- **Consistencia eventual:** Los datos se replican automáticamente del master a la replica
+
+### 🔍 Verificar estado de replicación
+```bash
+docker exec gestor_db_master psql -U postgres -d gestor_proyectos -c "SELECT client_addr, state, sync_state FROM pg_stat_replication;"
 ```
 
-Esto permite **ampliar los recursos asignados a un único contenedor**, mostrando **escalabilidad vertical**.  
-
+### 🧪 Probar que la replica rechaza escrituras
+```bash
+# Esto debe fallar con ERROR: cannot execute INSERT in a read-only transaction
+docker exec gestor_db_replica psql -U postgres -d gestor_proyectos -c "INSERT INTO projects (name, description) VALUES ('Test', 'Debe fallar');"
+```
 
 ---
 
