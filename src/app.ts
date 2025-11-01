@@ -5,6 +5,7 @@ import { sequelizeMaster, sequelizeReplica } from './config/db';
 import userRoutes from './routes/userRoutes';
 import projectRoutes from './routes/projectsRoutes';
 import taskRoutes from './routes/taskRoutes';
+import statisticsRoutes from './routes/statisticsRoutes';
 
 const app: Application = express();
 const PORT = 3000;
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use('/users', userRoutes);
 app.use('/projects', projectRoutes);
 app.use('/tasks', taskRoutes);
+app.use('/statistics', statisticsRoutes);
 
 // Test
 app.get('/', (req: Request, res: Response) => {
