@@ -1,15 +1,31 @@
 #!/bin/bash
 set -e
 
-# Configurar el master para replicación
-echo "Configurando PostgreSQL Master para replicación..."
+echo "===== CONFIGURANDO POSTGRESQL MASTER ====="
 
-# Crear usuario de replicación
+# Crear usuario de replicaciÃ³n
+echo "Creando usuario de replicaciÃ³n..."
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD '$POSTGRES_PASSWORD';
+    DO \$\$
+    BEGIN
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'replicator') THEN
+            CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD '$POSTGRES_PASSWORD';
+            RAISE NOTICE 'Usuario replicator creado';
+        ELSE
+            RAISE NOTICE 'Usuario replicator ya existe';
+        END IF;
+    END
+    \$\$;
 EOSQL
 
-# Configurar pg_hba.conf para permitir conexiones de réplica
+# Configurar pg_hba.conf para permitir conexiones de rÃ©plica
+echo "Configurando pg_hba.conf..."
 echo "host replication replicator all md5" >> "$PGDATA/pg_hba.conf"
+echo "host all all all md5" >> "$PGDATA/pg_hba.conf"
 
-echo "Master configurado correctamente"
+# Recargar configuraciÃ³n
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+    SELECT pg_reload_conf();
+EOSQL
+
+echo "===== MASTER CONFIGURADO CORRECTAMENTE ====="
