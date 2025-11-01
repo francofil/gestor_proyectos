@@ -19,7 +19,7 @@
 
     /* 🔹 Otros */
     "forceConsistentCasingInFileNames": true,
-    "sourceMap": true                  /* Genera mapas para debuggear en TS */
+    "sourceMap": false                 /* Deshabilitado - no genera .map files */
   },
   "include": ["src"],                  /* Archivos a incluir */
   "exclude": ["node_modules", "dist"]  /* Ignorar node_modules y compilados */

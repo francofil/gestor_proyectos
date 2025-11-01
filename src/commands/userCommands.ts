@@ -1,11 +1,13 @@
 import { sequelizeMaster } from '../config/db';
+import { retryQuery } from '../utils/retryQuery';
 
 /**
  * COMMANDS - Operaciones de ESCRITURA (usa sequelizeMaster)
  */
 
 export const createUser = async (name: string, email: string) => {
-  const [result]: any = await sequelizeMaster.query(
+  const [result]: any = await retryQuery(
+    sequelizeMaster,
     'INSERT INTO users (name, email, created_at, updated_at) VALUES (:name, :email, NOW(), NOW()) RETURNING *',
     {
       replacements: { name, email }
@@ -31,7 +33,8 @@ export const updateUser = async (id: string, data: { name?: string; email?: stri
   
   fields.push('updated_at = NOW()');
   
-  const [result]: any = await sequelizeMaster.query(
+  const [result]: any = await retryQuery(
+    sequelizeMaster,
     `UPDATE users SET ${fields.join(', ')} WHERE id = :id RETURNING *`,
     {
       replacements
@@ -42,7 +45,8 @@ export const updateUser = async (id: string, data: { name?: string; email?: stri
 };
 
 export const deleteUser = async (id: string) => {
-  await sequelizeMaster.query(
+  await retryQuery(
+    sequelizeMaster,
     'DELETE FROM users WHERE id = :id',
     {
       replacements: { id }

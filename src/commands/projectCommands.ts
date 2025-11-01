@@ -1,11 +1,13 @@
 import { sequelizeMaster } from '../config/db';
+import { retryQuery } from '../utils/retryQuery';
 
 /**
  * COMMANDS - Operaciones de ESCRITURA (usa sequelizeMaster)
  */
 
 export const createProject = async (name: string, description: string) => {
-  const [result]: any = await sequelizeMaster.query(
+  const [result]: any = await retryQuery(
+    sequelizeMaster,
     'INSERT INTO projects (name, description, created_at, updated_at) VALUES (:name, :description, NOW(), NOW()) RETURNING *',
     {
       replacements: { name, description }
@@ -31,7 +33,8 @@ export const updateProject = async (id: string, data: { name?: string; descripti
   
   fields.push('updated_at = NOW()');
   
-  const [result]: any = await sequelizeMaster.query(
+  const [result]: any = await retryQuery(
+    sequelizeMaster,
     `UPDATE projects SET ${fields.join(', ')} WHERE id = :id RETURNING *`,
     {
       replacements
@@ -42,7 +45,8 @@ export const updateProject = async (id: string, data: { name?: string; descripti
 };
 
 export const deleteProject = async (id: string) => {
-  await sequelizeMaster.query(
+  await retryQuery(
+    sequelizeMaster,
     'DELETE FROM projects WHERE id = :id',
     {
       replacements: { id }
