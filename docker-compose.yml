@@ -35,7 +35,7 @@ services:
       - pgdata-master:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/01-init.sql
       - ./docker/setup-master.sh:/docker-entrypoint-initdb.d/02-setup-master.sh
-    command: postgres -c wal_level=replica -c max_wal_senders=3 -c wal_keep_size=64
+    command: postgres -c wal_level=replica -c max_wal_senders=3 -c wal_keep_size=64 -c log_statement=all -c log_destination=stderr -c logging_collector=off
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
@@ -68,6 +68,7 @@ services:
     volumes:
       - pgdata-replica:/var/lib/postgresql/data
       - ./docker/setup-replica.sh:/docker-entrypoint-initdb.d/setup-replica.sh
+    command: postgres -c log_statement=all -c log_destination=stderr -c logging_collector=off
     deploy:
       resources:
         limits:

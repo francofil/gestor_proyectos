@@ -30,5 +30,5 @@ export const sequelizeReplica = new Sequelize(
   }
 );
 
-// Exportación por defecto (usa master para compatibilidad)
+// Alias para compatibilidad con models existentes
 export const sequelize = sequelizeMaster;

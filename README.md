@@ -15,13 +15,17 @@ El objetivo es demostrar:
 ## 📂 Estructura del proyecto
 ```
 src/
+ ├── commands/      # CQRS - Operaciones de ESCRITURA (usa Master DB)
+ ├── queries/       # CQRS - Operaciones de LECTURA (usa Replica DB)
+ ├── controllers/   # Controladores que usan Commands y Queries
  ├── models/        # Modelos Sequelize (Users, Projects, Tasks)
- ├── controllers/   # Lógica de negocio
  ├── routes/        # Endpoints de la API
- ├── config/        # Configuración (DB, Sequelize)
+ ├── config/        # Configuración (DB con Master y Replica)
  └── app.ts         # Punto de entrada del servidor
 docker/
- └── init.sql       # Script de inicialización de la base de datos
+ ├── init.sql            # Script de inicialización de la base de datos
+ ├── setup-master.sh     # Configuración de replicación en Master
+ └── setup-replica.sh    # Configuración de Replica como read-only
 ```
 
 ---

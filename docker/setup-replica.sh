@@ -21,4 +21,9 @@ PGPASSWORD="$POSTGRES_PASSWORD" pg_basebackup -h db-master -D "$PGDATA" -U repli
 echo "default_transaction_read_only = on" >> "$PGDATA/postgresql.conf"
 echo "hot_standby = on" >> "$PGDATA/postgresql.conf"
 
-echo "Replica configurada correctamente como solo lectura"
+# Configurar logging para trackear queries
+echo "log_statement = 'all'" >> "$PGDATA/postgresql.conf"
+echo "log_destination = 'stderr'" >> "$PGDATA/postgresql.conf"
+echo "logging_collector = off" >> "$PGDATA/postgresql.conf"
+
+echo "Replica configurada correctamente como solo lectura con logging habilitado"
