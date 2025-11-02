@@ -1,13 +1,9 @@
-import { sequelizeMaster } from '../config/db';
+import { tasksMasterPool } from '../config/bulkheadPools';
 import { retryQuery } from '../utils/retryQuery';
-
-/**
- * COMMANDS - Operaciones de ESCRITURA (usa sequelizeMaster)
- */
 
 export const createTask = async (title: string, userId: number, projectId: number) => {
   const [result]: any = await retryQuery(
-    sequelizeMaster,
+    tasksMasterPool,
     'INSERT INTO tasks (title, user_id, project_id, completed, created_at, updated_at) VALUES (:title, :userId, :projectId, false, NOW(), NOW()) RETURNING *',
     {
       replacements: { title, userId, projectId }
@@ -38,7 +34,7 @@ export const updateTask = async (id: string, data: { title?: string; userId?: nu
   fields.push('updated_at = NOW()');
   
   const [result]: any = await retryQuery(
-    sequelizeMaster,
+    tasksMasterPool,
     `UPDATE tasks SET ${fields.join(', ')} WHERE id = :id RETURNING *`,
     {
       replacements
@@ -50,7 +46,7 @@ export const updateTask = async (id: string, data: { title?: string; userId?: nu
 
 export const deleteTask = async (id: string) => {
   await retryQuery(
-    sequelizeMaster,
+    tasksMasterPool,
     'DELETE FROM tasks WHERE id = :id',
     {
       replacements: { id }

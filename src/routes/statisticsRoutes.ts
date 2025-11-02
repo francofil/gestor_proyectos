@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { StatisticsController } from '../controllers/statisticsController';
+import { bulkheadMiddleware } from '../middleware/bulkhead';
 
 const router = Router();
+
+// Aplicar middleware de Bulkhead para limitar concurrencia en módulo de estadísticas
+router.use(bulkheadMiddleware('statistics'));
 
 /**
  * @route   GET /statistics

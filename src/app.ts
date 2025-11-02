@@ -2,6 +2,7 @@ import express, { Application, Request, Response } from 'express';
 import { sequelizeMaster, sequelizeReplica } from './config/db';
 import { configReloadMiddleware } from './middleware/configReload';
 import { getConfig } from './config/externalConfig';
+import { bulkheadMetricsMiddleware } from './middleware/bulkhead';
 
 // Rutas
 import userRoutes from './routes/userRoutes';
@@ -24,20 +25,31 @@ app.use('/tasks', taskRoutes);
 app.use('/statistics', statisticsRoutes);
 app.use('/config', configRoutes);
 
+// Métricas de Bulkhead Pattern
+app.get('/bulkhead/metrics', bulkheadMetricsMiddleware);
+
 // Test
 app.get('/', (req: Request, res: Response) => {
-  res.send('🚀 API funcionando con Master-Replica CQRS');
+  res.send('🚀 API funcionando con Master-Replica CQRS + Bulkhead Pattern');
 });
 
 // Health check
 app.get('/health', async (req: Request, res: Response) => {
   try {
     await sequelizeMaster.authenticate();
-    await sequelizeReplica.authenticate();
+    let replicaStatus = 'connected';
+    
+    try {
+      await sequelizeReplica.authenticate();
+    } catch {
+      replicaStatus = 'using-master (Bulkhead active)';
+    }
+    
     res.json({
       status: 'healthy',
       master: 'connected',
-      replica: 'connected'
+      replica: replicaStatus,
+      bulkhead: 'active'
     });
   } catch (err: any) {
     res.status(500).json({
@@ -54,8 +66,13 @@ async function connectWithRetry(maxRetries = 10, delay = 3000) {
       await sequelizeMaster.authenticate();
       console.log('✅ Conexión a BD MASTER establecida');
       
-      await sequelizeReplica.authenticate();
-      console.log('✅ Conexión a BD REPLICA establecida');
+      // Intentar conectar réplica, pero no es crítico para Bulkhead
+      try {
+        await sequelizeReplica.authenticate();
+        console.log('✅ Conexión a BD REPLICA establecida');
+      } catch (replicaErr: any) {
+        console.log('⚠️  Réplica no disponible, usando solo Master (Bulkhead sigue funcionando)');
+      }
       
       return true;
     } catch (err: any) {
@@ -66,7 +83,7 @@ async function connectWithRetry(maxRetries = 10, delay = 3000) {
       }
     }
   }
-  throw new Error('No se pudo conectar a las bases de datos después de múltiples intentos');
+  throw new Error('No se pudo conectar a la base de datos MASTER después de múltiples intentos');
 }
 
 // Conectar ambas bases de datos
