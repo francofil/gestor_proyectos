@@ -30,7 +30,7 @@ app.get('/bulkhead/metrics', bulkheadMetricsMiddleware);
 
 // Test
 app.get('/', (req: Request, res: Response) => {
-  res.send('🚀 API funcionando con Master-Replica CQRS + Bulkhead Pattern');
+  res.send('API funcionando con Master-Replica CQRS + Bulkhead Pattern');
 });
 
 // Health check
@@ -64,21 +64,21 @@ async function connectWithRetry(maxRetries = 10, delay = 3000) {
   for (let i = 0; i < maxRetries; i++) {
     try {
       await sequelizeMaster.authenticate();
-      console.log('✅ Conexión a BD MASTER establecida');
+      console.log('Conexión a BD MASTER establecida');
       
       // Intentar conectar réplica, pero no es crítico para Bulkhead
       try {
         await sequelizeReplica.authenticate();
-        console.log('✅ Conexión a BD REPLICA establecida');
+        console.log('Conexión a BD REPLICA establecida');
       } catch (replicaErr: any) {
-        console.log('⚠️  Réplica no disponible, usando solo Master (Bulkhead sigue funcionando)');
+        console.log('[WARNING] Réplica no disponible, usando solo Master (Bulkhead sigue funcionando)');
       }
       
       return true;
     } catch (err: any) {
-      console.log(`⚠️  Intento ${i + 1}/${maxRetries} fallido: ${err.message}`);
+      console.log(`[WARNING] Intento ${i + 1}/${maxRetries} fallido: ${err.message}`);
       if (i < maxRetries - 1) {
-        console.log(`⏳ Reintentando en ${delay/1000} segundos...`);
+        console.log(`Reintentando en ${delay/1000} segundos...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -91,8 +91,8 @@ connectWithRetry()
   .then(() => {
     const config = getConfig();
     app.listen(config.server.port, () => {
-      console.log(`🚀 Servidor corriendo en http://localhost:${config.server.port}`);
-      console.log(`📋 Configuración externa cargada desde config.json`);
+      console.log(`Servidor corriendo en http://localhost:${config.server.port}`);
+      console.log(`Configuración externa cargada desde config.json`);
     });
   })
   .catch((err: Error) => {

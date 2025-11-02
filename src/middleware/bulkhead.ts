@@ -80,19 +80,19 @@ export const bulkheadMiddleware = (module: string, maxConcurrent?: number) => {
           const config = getConfig();
           limit = config.bulkhead?.concurrency?.[module as keyof typeof config.bulkhead.concurrency] || 20;
         } catch (error) {
-          console.warn(`⚠️  No se pudo leer límite de concurrencia para ${module}, usando 20 por defecto`);
+          console.warn(`[Bulkhead] No se pudo leer límite de concurrencia para ${module}, usando 20 por defecto`);
           limit = 20;
         }
       }
       
       semaphores.set(module, initSemaphore(module, limit));
-      console.log(`🔒 Bulkhead inicializado para módulo '${module}' con límite de ${limit} requests concurrentes`);
+      console.log(`[Bulkhead] Inicializado para módulo '${module}' con límite de ${limit} requests concurrentes`);
     }
     
     const semaphore = semaphores.get(module)!;
     
     if (!acquire(semaphore)) {
-      console.warn(`🚫 [Bulkhead] Request rechazada en ${module}: límite de ${semaphore.limit} alcanzado (actual: ${semaphore.current})`);
+      console.warn(`[Bulkhead] Request rechazada en ${module}: límite de ${semaphore.limit} alcanzado (actual: ${semaphore.current})`);
       
       return res.status(503).json({
         error: 'Service Temporarily Unavailable',
@@ -105,19 +105,19 @@ export const bulkheadMiddleware = (module: string, maxConcurrent?: number) => {
     }
     
     const requestId = `${module}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    console.log(`✅ [Bulkhead] [${requestId}] Request aceptada en ${module} (${semaphore.current}/${semaphore.limit})`);
+    console.log(`[Bulkhead] [${requestId}] Request aceptada en ${module} (${semaphore.current}/${semaphore.limit})`);
     
     // Prevenir doble-release: ambos eventos (finish/close) pueden dispararse
     let released = false;
     
     const releaseSlot = (event: string) => {
       if (released) {
-        console.log(`⚠️ [Bulkhead] [${requestId}] Intento de release duplicado en ${module} via '${event}' - IGNORADO`);
+        console.log(`[Bulkhead] [${requestId}] Intento de release duplicado en ${module} via '${event}' - IGNORADO`);
         return;
       }
       released = true;
       release(semaphore);
-      console.log(`🔓 [Bulkhead] [${requestId}] Request finalizada en ${module} via '${event}' (${semaphore.current}/${semaphore.limit})`);
+      console.log(`[Bulkhead] [${requestId}] Request finalizada en ${module} via '${event}' (${semaphore.current}/${semaphore.limit})`);
     };
     
     res.once('finish', () => releaseSlot('finish'));
