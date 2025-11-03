@@ -23,24 +23,24 @@ Cliente → Gatekeeper → Servicios Internos → Base de Datos
    - Simulador de autenticación para testing
    - Gestión de roles de usuario
 
-## 🛡️ Funcionalidades de Seguridad
+## Funcionalidades de Seguridad
 
 ### 1. **Validación de IPs**
-- Lista negra de IPs bloqueadas (pusimos ips de ejemplos x)
+- Lista negra de IPs bloqueadas
 - Bloqueo automático de direcciones maliciosas
 
 ### 2. **Rate Limiting**
 - Máximo 100 solicitudes por minuto por IP
 - Protección contra ataques de fuerza bruta
 
-### 3. **Control de Permisos por Rol** (porque el gatekeeper valida por roles)
+### 3. **Control de Permisos por Rol**
 - **admin**: Acceso total (CRUD completo)
 - **developer**: Crear/leer/actualizar proyectos y tareas
 - **tester**: Solo lectura de recursos
 - **designer**: Solo lectura de recursos
 - **guest**: Solo endpoint público
 
-### 4. **Sanitización de Entrada** 
+### 4. **Sanitización de Entrada**
 
 - Limpieza de parámetros de ruta
 - Filtrado de caracteres peligrosos
@@ -51,7 +51,7 @@ Cliente → Gatekeeper → Servicios Internos → Base de Datos
 - Tracking de IPs y user agents
 - Historial de solicitudes
 
-## 🚀 Uso y Testing
+## Uso y Testing
 
 ### Configuración de Roles
 
@@ -68,7 +68,7 @@ curl -H "x-user-role: developer" -H "authorization: Bearer token" http://localho
 curl -H "x-user-role: tester" -H "authorization: Bearer token" http://localhost:3000/tasks
 ```
 
-## 🧪 Casos de Prueba
+## Casos de Prueba
 
 ### 1. Acceso Denegado por Rol
 ```bash
@@ -76,18 +76,18 @@ curl -H "x-user-role: tester" -H "authorization: Bearer token" http://localhost:
 curl -X POST http://localhost:3000/users \
   -H "x-user-role: tester" \
   -H "authorization: Bearer token" \
-  -H "Content-Type: application/json" \
+  -H "Content-Type: application/json" 
   -d '{"name": "Test", "email": "test@example.com"}'
 ```
 
 ### 3. IP Bloqueada
 - Configura tu IP en BLOCKED_IPS y verifica el bloqueo
 
-## 📊 Beneficios del Patrón
+## Beneficios del Patrón
 
-✅ **Seguridad Centralizada**: Un solo punto para validar todas las solicitudes, centralizamos las politicas que necesite el sistema
-✅ **Control Granular**: Permisos específicos por rol y endpoint, denegamos los accesos dependiendo del rol
-✅ **Escalabilidad**: Fácil agregar nuevas reglas de seguridad
-✅ **Auditoría**: Logging completo de accesos
-✅ **Flexibilidad**: Configuración dinámica de permisos
-✅ **Mantenibilidad**: Lógica de seguridad separada del negocio (Importante para modularizar)
+- **Seguridad Centralizada**: Un solo punto para validar todas las solicitudes
+- **Control Granular**: Permisos específicos por rol y endpoint
+- **Escalabilidad**: Fácil agregar nuevas reglas de seguridad
+- **Auditoría**: Logging completo de accesos
+- **Flexibilidad**: Configuración dinámica de permisos
+- **Mantenibilidad**: Lógica de seguridad separada del negocio

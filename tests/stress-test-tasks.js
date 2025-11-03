@@ -48,14 +48,14 @@ function makeRequest(id) {
         
         if (res.statusCode === 200) {
           success++;
-          console.log(`✅ Request ${id}: SUCCESS (${responseTime}ms)`);
+          console.log(`Request ${id}: SUCCESS (${responseTime}ms)`);
         } else if (res.statusCode === 503) {
           rejected503++;
           errors++;
-          console.log(`🚫 Request ${id}: REJECTED by Bulkhead - 503 Service Unavailable (${responseTime}ms)`);
+          console.log(`Request ${id}: REJECTED - 503 (${responseTime}ms)`);
         } else {
           errors++;
-          console.log(`❌ Request ${id}: ERROR ${res.statusCode} (${responseTime}ms)`);
+          console.log(`Request ${id}: ERROR ${res.statusCode} (${responseTime}ms)`);
         }
         
         resolve();
@@ -67,7 +67,7 @@ function makeRequest(id) {
       responseTimes.push(responseTime);
       completed++;
       errors++;
-      console.log(`❌ Request ${id}: NETWORK ERROR - ${err.message} (${responseTime}ms)`);
+      console.log(`Request ${id}: NETWORK ERROR - ${err.message} (${responseTime}ms)`);
       resolve();
     });
     
@@ -77,7 +77,7 @@ function makeRequest(id) {
       responseTimes.push(responseTime);
       completed++;
       errors++;
-      console.log(`⏱️  Request ${id}: TIMEOUT (${responseTime}ms)`);
+      console.log(`Request ${id}: TIMEOUT (${responseTime}ms)`);
       resolve();
     });
   });
@@ -98,12 +98,12 @@ function calculatePercentile(arr, percentile) {
  */
 async function runStressTest() {
   console.log('\n========================================');
-  console.log('🔥 PRUEBA DE ESTRÉS - Endpoint /tasks');
+  console.log('STRESS TEST - /tasks endpoint');
   console.log('========================================');
   console.log(`API URL: ${API_URL}`);
   console.log(`Endpoint: ${ENDPOINT}`);
-  console.log(`Número de requests: ${NUM_REQUESTS}`);
-  console.log(`Concurrencia: MÁXIMA (todas las requests simultáneas)`);
+  console.log(`Requests: ${NUM_REQUESTS}`);
+  console.log(`Concurrency: MAX`);
   console.log('========================================\n');
   
   // Disparar todas las requests al mismo tiempo
@@ -127,29 +127,29 @@ async function runStressTest() {
   
   // Mostrar resultados
   console.log('\n========================================');
-  console.log('📊 RESULTADOS DE LA PRUEBA');
+  console.log('RESULTS');
   console.log('========================================');
-  console.log(`Total de requests: ${NUM_REQUESTS}`);
-  console.log(`Exitosas (200): ${success} (${((success/NUM_REQUESTS)*100).toFixed(2)}%)`);
-  console.log(`Rechazadas por Bulkhead (503): ${rejected503} (${((rejected503/NUM_REQUESTS)*100).toFixed(2)}%)`);
-  console.log(`Errores: ${errors} (${((errors/NUM_REQUESTS)*100).toFixed(2)}%)`);
-  console.log(`Tiempo total: ${totalTime}ms`);
+  console.log(`Total requests: ${NUM_REQUESTS}`);
+  console.log(`Success (200): ${success} (${((success/NUM_REQUESTS)*100).toFixed(2)}%)`);
+  console.log(`Rejected (503): ${rejected503} (${((rejected503/NUM_REQUESTS)*100).toFixed(2)}%)`);
+  console.log(`Errors: ${errors} (${((errors/NUM_REQUESTS)*100).toFixed(2)}%)`);
+  console.log(`Total time: ${totalTime}ms`);
   console.log(`Throughput: ${(NUM_REQUESTS / (totalTime / 1000)).toFixed(2)} req/s`);
   console.log('');
-  console.log('📈 LATENCIAS:');
-  console.log(`  Mínima: ${minResponseTime}ms`);
-  console.log(`  Promedio: ${avgResponseTime.toFixed(2)}ms`);
-  console.log(`  P50 (mediana): ${p50}ms`);
+  console.log('LATENCIES:');
+  console.log(`  Min: ${minResponseTime}ms`);
+  console.log(`  Avg: ${avgResponseTime.toFixed(2)}ms`);
+  console.log(`  P50: ${p50}ms`);
   console.log(`  P95: ${p95}ms`);
   console.log(`  P99: ${p99}ms`);
-  console.log(`  Máxima: ${maxResponseTime}ms`);
+  console.log(`  Max: ${maxResponseTime}ms`);
   console.log('========================================\n');
   
   // Interpretación para Bulkhead
   if (rejected503 > 0) {
-    console.log('✅ Bulkhead funcionando: Se rechazaron requests por límite de concurrencia');
+    console.log('Bulkhead pattern active: Requests rejected due to concurrency limit');
   } else {
-    console.log('⚠️  No se activó el Bulkhead: Todas las requests fueron procesadas');
+    console.log('Bulkhead not activated: All requests processed');
   }
 }
 

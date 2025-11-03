@@ -19,10 +19,10 @@ app.use(express.json());
 // Middleware para recargar configuración en cada request
 app.use(configReloadMiddleware);
 
-// 🔒 GATEKEEPER: Aplicar el patrón Gatekeeper a TODAS las rutas
+// Aplicar el patrón Gatekeeper a todas las rutas
 app.use(GatekeeperMiddleware.validate);
 
-// Endpoints protegidos por el Gatekeeper
+// Endpoints protegidos
 app.use('/users', userRoutes);
 app.use('/projects', projectRoutes);
 app.use('/tasks', taskRoutes);
@@ -32,29 +32,11 @@ app.use('/config', configRoutes);
 // Métricas de Bulkhead Pattern
 app.get('/bulkhead/metrics', bulkheadMetricsMiddleware);
 
-// Test (las ´ponemos aca para no crear otro controller)
+// Test endpoint
 app.get('/', (req: Request, res: Response) => {
   res.json({
-    message: '🚀 API funcionando con Master-Replica CQRS + Bulkhead Pattern + Gatekeeper',
-    architecture: {
-      patterns: ['CQRS', 'Bulkhead', 'Gatekeeper', 'Master-Replica'],
-      description: 'Commands y Queries separados con protección Gatekeeper'
-    },
-    gatekeeper: {
-      status: 'active',
-      description: 'Todas las solicitudes pasan por validación del Gatekeeper',
-      features: [
-        'Validación de IPs',
-        'Rate limiting',
-        'Control de permisos por rol',
-        'Sanitización de entrada',
-        'Logging de auditoría'
-      ]
-    },
-    testing: {
-      instructions: 'Agrega el header "x-user-role" con valores: admin, developer, tester, designer, guest',
-      example: 'curl -H "x-user-role: admin" http://localhost:3000/users'
-    }
+    message: 'API running',
+    patterns: ['CQRS', 'Bulkhead', 'Gatekeeper', 'Master-Replica']
   });
 });
 
@@ -67,15 +49,13 @@ app.get('/health', async (req: Request, res: Response) => {
     try {
       await sequelizeReplica.authenticate();
     } catch {
-      replicaStatus = 'using-master (Bulkhead active)';
+      replicaStatus = 'using-master';
     }
     
     res.json({
       status: 'healthy',
       master: 'connected',
-      replica: replicaStatus,
-      bulkhead: 'active',
-      gatekeeper: 'active'
+      replica: replicaStatus
     });
   } catch (err: any) {
     res.status(500).json({
@@ -123,17 +103,17 @@ async function connectWithRetry(maxRetries = 10, delay = 3000) {
       await sequelizeMaster.authenticate();
       console.log('Conexión a BD MASTER establecida');
       
-      // Intentar conectar réplica, pero no es crítico para Bulkhead
+      // Intentar conectar réplica, pero no es crítico
       try {
         await sequelizeReplica.authenticate();
         console.log('Conexión a BD REPLICA establecida');
       } catch (replicaErr: any) {
-        console.log('[WARNING] Réplica no disponible, usando solo Master (Bulkhead sigue funcionando)');
+        console.log('Réplica no disponible, usando solo Master');
       }
       
       return true;
     } catch (err: any) {
-      console.log(`[WARNING] Intento ${i + 1}/${maxRetries} fallido: ${err.message}`);
+      console.log(`Intento ${i + 1}/${maxRetries} fallido: ${err.message}`);
       if (i < maxRetries - 1) {
         console.log(`Reintentando en ${delay/1000} segundos...`);
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -153,6 +133,6 @@ connectWithRetry()
     });
   })
   .catch((err: Error) => {
-    console.error('❌ Error fatal al conectar la BD:', err);
+    console.error('Error fatal al conectar la BD:', err);
     process.exit(1);
   });

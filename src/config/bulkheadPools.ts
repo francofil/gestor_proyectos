@@ -108,11 +108,7 @@ export const statisticsReplicaPool = new Sequelize(
   }
 );
 
-console.log('Pools de Bulkhead inicializados correctamente');
-console.log('   - Users: max 10 conexiones');
-console.log('   - Projects: max 10 conexiones');
-console.log('   - Tasks: max 10 conexiones');
-console.log('   - Statistics: max 5 conexiones');
+// Pools de Bulkhead inicializados
 
 export const getPoolForModule = (module: 'users' | 'projects' | 'tasks' | 'statistics', operation: 'read' | 'write' = 'read') => {
   switch (module) {

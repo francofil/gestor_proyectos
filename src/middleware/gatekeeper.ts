@@ -58,8 +58,6 @@ export class GatekeeperMiddleware {
    * Valida y sanitiza todas las solicitudes antes de permitir acceso
    */
   static validate(req: Request, res: Response, next: NextFunction): void {
-    console.log(` [GATEKEEPER] ${req.method} ${req.path} - IP: ${req.ip}`);
-
     try {
       // 1. Validación de IP bloqueadas
       if (!GatekeeperMiddleware.validateIP(req, res)) return;
@@ -76,12 +74,11 @@ export class GatekeeperMiddleware {
       // 5. Logging de acceso
       GatekeeperMiddleware.logAccess(req);
 
-      console.log(` [GATEKEEPER] Solicitud autorizada`);
       next();
     } catch (error) {
-      console.error(` [GATEKEEPER] Error interno:`, error);
+      console.error('Error interno:', error);
       res.status(500).json({ 
-        error: 'Error interno del gateway',
+        error: 'Internal server error',
         code: 'GATEKEEPER_ERROR'
       });
     }
@@ -94,9 +91,8 @@ export class GatekeeperMiddleware {
     const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
     
     if (BLOCKED_IPS.includes(clientIP)) {
-      console.log(`[GATEKEEPER] IP bloqueada: ${clientIP}`);
       res.status(403).json({ 
-        error: 'Acceso denegado desde esta IP',
+        error: 'Access denied',
         code: 'IP_BLOCKED'
       });
       return false;
@@ -124,9 +120,8 @@ export class GatekeeperMiddleware {
     }
 
     if (clientData.count >= RATE_LIMIT_REQUESTS) {
-      console.log(` [GATEKEEPER] Rate limit excedido para IP: ${clientIP}`);
       res.status(429).json({ 
-        error: 'Demasiadas solicitudes. Intente más tarde.',
+        error: 'Too many requests',
         code: 'RATE_LIMIT_EXCEEDED',
         retryAfter: Math.ceil((clientData.resetTime - now) / 1000)
       });
@@ -182,9 +177,8 @@ export class GatekeeperMiddleware {
     );
 
     if (!endpointConfig) {
-      console.log(` [GATEKEEPER] Endpoint no configurado: ${method} ${path}`);
       res.status(404).json({ 
-        error: 'Endpoint no encontrado',
+        error: 'Not found',
         code: 'ENDPOINT_NOT_FOUND'
       });
       return false;
@@ -195,18 +189,16 @@ export class GatekeeperMiddleware {
       const userRole = GatekeeperMiddleware.extractUserRole(req);
       
       if (!userRole) {
-        console.log(` [GATEKEEPER] Usuario no autenticado`);
         res.status(401).json({ 
-          error: 'Autenticación requerida',
+          error: 'Authentication required',
           code: 'AUTHENTICATION_REQUIRED'
         });
         return false;
       }
 
       if (!endpointConfig.allowedRoles.includes(userRole)) {
-        console.log(` [GATEKEEPER] Rol insuficiente: ${userRole} para ${method} ${path}`);
         res.status(403).json({ 
-          error: 'Permisos insuficientes para este recurso',
+          error: 'Insufficient permissions',
           code: 'INSUFFICIENT_PERMISSIONS',
           requiredRoles: endpointConfig.allowedRoles
         });
@@ -251,7 +243,7 @@ export class GatekeeperMiddleware {
       userRole: req.headers['x-user-role'] || 'guest'
     };
     
-    console.log(`📋 [GATEKEEPER] Acceso registrado:`, logEntry);
+    // Log silencioso para auditoría
     // Aquí podrías enviar a un sistema de logging externo
   }
 }

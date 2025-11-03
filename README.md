@@ -1,6 +1,6 @@
-# 📌 Gestor de Proyectos – Demo Arquitecturas (TFU)
+# Gestor de Proyectos – Demo Arquitecturas (TFU)
 
-## 📝 Descripción
+## Descripción
 
 Este proyecto es una **demo académica** para la unidad de _Soluciones Arquitectónicas_.  
 Se desarrolló un **mini gestor de proyectos** siguiendo el patrón **MVC** con **Node.js, Express, TypeScript y Sequelize**, utilizando **PostgreSQL** como base de datos.
@@ -16,7 +16,7 @@ El objetivo es demostrar:
 
 ---
 
-## 📂 Estructura del proyecto
+## Estructura del proyecto
 
 ```
 src/
@@ -36,7 +36,7 @@ docker/
 
 ---
 
-## ⚙️ Tecnologías
+## Tecnologías
 
 - **Backend:** Node.js + Express + TypeScript
 - **ORM:** Sequelize
@@ -45,7 +45,7 @@ docker/
 
 ---
 
-## 🚀 Levantar la demo
+## Levantar la demo
 
 ### 1. Clonar el repositorio
 
@@ -100,7 +100,7 @@ El contenedor de Postgres ejecuta automáticamente `docker/init.sql` en la prime
 
 ---
 
-## 📊 Endpoints principales
+## Endpoints principales
 
 - `GET /users` → listar usuarios
 - `POST /users` → crear usuario
@@ -111,7 +111,7 @@ El contenedor de Postgres ejecuta automáticamente `docker/init.sql` en la prime
 
 ---
 
-## 🔒 ACID y transacciones
+## ACID y transacciones
 
 - PostgreSQL garantiza propiedades **ACID** en cada operación (`INSERT`, `UPDATE`, `DELETE`).
 - Para operaciones compuestas, se implementan transacciones con Sequelize:
@@ -129,25 +129,25 @@ await sequelize.transaction(async (t) => {
 });
 ```
 
-👉 Si algo falla, se hace **rollback** y no se rompe la consistencia.
+Si algo falla, se hace **rollback** y no se rompe la consistencia.
 
 ---
 
-## 🔄 CQRS con Master-Replica
+## CQRS con Master-Replica
 
 Se implementó el patrón **CQRS (Command Query Responsibility Segregation)** con **replicación streaming de PostgreSQL**:
 
 - **Base de datos MASTER (puerto 5432):** Maneja todas las operaciones de **escritura** (Commands: INSERT, UPDATE, DELETE)
 - **Base de datos REPLICA (puerto 5433):** Maneja todas las operaciones de **lectura** (Queries: SELECT) en modo **solo lectura**
 
-### ✅ Ventajas
+### Ventajas
 
 - **Separación de responsabilidades:** Escrituras y lecturas aisladas
 - **Escalabilidad:** Múltiples replicas pueden atender lecturas sin afectar escrituras
-- **Alta disponibilidad:** Si el master falla, la replica puede promovarse
+- **Alta disponibilidad:** Si el master falla, la replica puede promoverse
 - **Consistencia eventual:** Los datos se replican automáticamente del master a la replica
 
-### 🔍 Verificar estado de replicación
+### Verificar estado de replicación
 
 ```bash
 docker exec gestor_db_master psql -U postgres -d gestor_proyectos -c "SELECT client_addr, state, sync_state FROM pg_stat_replication;"
@@ -155,7 +155,7 @@ docker exec gestor_db_master psql -U postgres -d gestor_proyectos -c "SELECT cli
 
 ---
 
-## 🔄 CQRS - Master-Replica Setup
+## CQRS - Master-Replica Setup
 
 Este proyecto implementa **CQRS (Command Query Responsibility Segregation)** usando replicación de PostgreSQL:
 
@@ -195,11 +195,62 @@ DB_PORT_REPLICA=5432
 Puedes verificar que la réplica es de **solo lectura** con este comando:
 
 ```bash
+```bash
 # 1. Intentar escribir en la réplica (debe FALLAR)
 docker exec -it gestor_db_replica psql -U postgres -d gestor_proyectos -c "CREATE TABLE test (id INT);"
 
 # Salida esperada:
 # ERROR: cannot execute CREATE TABLE in a read-only transaction
+```
+
+```bash
+# 2. Verificar el estado de solo lectura
+docker exec -it gestor_db_replica psql -U postgres -d gestor_proyectos -c "SHOW default_transaction_read_only;"
+
+# Salida esperada:
+# default_transaction_read_only
+# -------------------------------
+#  on
+```
+
+```bash
+# 3. Verificar que la replicación funciona
+# Escribir en el master
+docker exec -it gestor_db_master psql -U postgres -d gestor_proyectos -c "SELECT COUNT(*) FROM users;"
+
+# Leer desde la replica (debe mostrar los mismos datos)
+docker exec -it gestor_db_replica psql -U postgres -d gestor_proyectos -c "SELECT COUNT(*) FROM users;"
+```
+
+### Beneficios del CQRS
+
+- **Escalabilidad de lectura**: Las consultas se distribuyen en la réplica
+- **Separación de responsabilidades**: Escrituras y lecturas en bases diferentes
+- **Alta disponibilidad**: La réplica puede servir datos si el master está ocupado
+- **Protección de datos**: Imposible modificar datos accidentalmente desde queries
+
+---
+
+## Retry Pattern (Patrón de Reintentos)
+
+Este proyecto implementa el **Retry Pattern** para todas las operaciones de base de datos, proporcionando **resiliencia automática** ante fallos transitorios.
+
+### Características
+
+- **Reintentos automáticos**: Hasta 3 reintentos por defecto
+- **Backoff exponencial**: Los delays aumentan progresivamente (1s, 2s, 4s...)
+- **Detección inteligente**: Solo reintenta errores transitorios (conexión, timeouts, deadlocks)
+- **Logging detallado**: Registra cada intento y el resultado final
+
+### Errores Reintenables
+
+- Conexión rechazada (`ECONNREFUSED`)
+- Timeouts de red (`ETIMEDOUT`)
+- Conexión reseteada (`ECONNRESET`)
+- Deadlocks de PostgreSQL (`40P01`)
+- Fallos de serialización (`40001`)
+
+### Ejemplo de Uso
 ```
 
 ```bash
@@ -265,7 +316,7 @@ export const createUser = async (name: string, email: string) => {
 };
 ```
 
-### 🔧 Configuración Personalizada
+### Configuración Personalizada
 
 ```typescript
 import { retryQuery, RetryConfig } from "../utils/retryQuery";
@@ -280,15 +331,7 @@ const customConfig: RetryConfig = {
 await retryQuery(sequelizeMaster, "SELECT ...", {}, customConfig);
 ```
 
-### 📊 Logs en Acción
-
-```
-⚠️ Intento 1/3 falló: Connection refused. Reintentando en 1000ms...
-⚠️ Intento 2/3 falló: Connection timeout. Reintentando en 2000ms...
-✅ Query exitosa después de 2 reintento(s)
-```
-
-### 🧪 Testing del Retry Pattern
+### Testing del Retry Pattern
 
 Para probar el comportamiento del retry pattern:
 
@@ -307,18 +350,18 @@ docker-compose start db-master
 
 ---
 
-## ⚙️ External Configuration Store
+## External Configuration Store
 
 Este proyecto implementa el patrón **External Configuration Store** para gestionar la configuración de forma centralizada y permitir **cambios en caliente** sin reiniciar la aplicación.
 
-### ✨ Características
+### Características
 
 - **Configuración centralizada**: Toda la config en un archivo `config.json`
 - **Recarga en caliente**: Los cambios se aplican en el siguiente request
 - **Sin reinicio**: Modifica configuración mientras la app corre
 - **API de gestión**: Endpoints para ver y actualizar la config
 
-### 📁 Estructura del archivo config.json
+### Estructura del archivo config.json
 
 ```json
 {
@@ -354,7 +397,7 @@ Este proyecto implementa el patrón **External Configuration Store** para gestio
 }
 ```
 
-### 🔧 Endpoints de Configuración
+### Endpoints de Configuración
 
 ```bash
 # Ver configuración actual
@@ -371,7 +414,7 @@ curl -X PUT http://localhost:3000/config \
   }'
 ```
 
-### 🧪 Probar Cambios en Caliente
+### Probar Cambios en Caliente
 
 ```bash
 # 1. Hacer una petición y ver los logs
@@ -389,14 +432,14 @@ curl http://localhost:3000/users
 # 5. Los nuevos requests usarán 5 reintentos
 ```
 
-### 💡 Cómo Funciona
+### Cómo Funciona
 
 1. **Middleware**: Cada request ejecuta `configReloadMiddleware`
 2. **Lectura**: Se lee `config.json` desde el disco
 3. **Aplicación**: La nueva config se usa inmediatamente
 4. **Sin caché**: No se almacena en memoria, siempre fresca
 
-### ✅ Ventajas
+### Ventajas
 
 - Ajustar comportamiento sin deployment
 - Testing de diferentes configuraciones
@@ -405,7 +448,215 @@ curl http://localhost:3000/users
 
 ---
 
-## 👥 Autores
+## Patrón Gatekeeper
+
+El **Patrón Gatekeeper** actúa como un **punto de entrada seguro** que valida, filtra y controla todas las solicitudes antes de permitir el acceso a los recursos internos.
+
+### Arquitectura
+
+```
+Cliente → Gatekeeper → Servicios Internos → Base de Datos
+           ↓
+    [Validación & Filtrado]
+```
+
+### Funcionalidades de Seguridad
+
+#### 1. Validación de IPs
+- Lista negra de IPs bloqueadas
+- Bloqueo automático de direcciones maliciosas
+
+#### 2. Rate Limiting
+- Máximo 100 solicitudes por minuto por IP
+- Protección contra ataques de fuerza bruta
+
+#### 3. Control de Permisos por Rol
+- **admin**: Acceso total (CRUD completo)
+- **developer**: Crear/leer/actualizar proyectos y tareas
+- **tester**: Solo lectura de recursos
+- **designer**: Solo lectura de recursos
+- **guest**: Solo endpoint público
+
+#### 4. Sanitización de Entrada
+- Limpieza de parámetros de ruta
+- Filtrado de caracteres peligrosos
+- Validación de datos de entrada
+
+#### 5. Logging y Auditoría
+- Registro completo de accesos
+- Tracking de IPs y user agents
+
+### Configuración de Roles
+
+Para probar diferentes roles, agrega el header en tus solicitudes:
+
+```bash
+# Como administrador
+curl -H "x-user-role: admin" -H "authorization: Bearer token" http://localhost:3000/users
+
+# Como developer
+curl -H "x-user-role: developer" -H "authorization: Bearer token" http://localhost:3000/projects
+
+# Como tester (solo lectura)
+curl -H "x-user-role: tester" -H "authorization: Bearer token" http://localhost:3000/tasks
+```
+
+### Caso de Prueba: Acceso Denegado
+
+```bash
+# Intentar crear usuario como tester (debería fallar)
+curl -X POST http://localhost:3000/users \
+  -H "x-user-role: tester" \
+  -H "authorization: Bearer token" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Test", "email": "test@example.com"}'
+```
+
+### Beneficios
+
+- **Seguridad Centralizada**: Un solo punto para validar todas las solicitudes
+- **Control Granular**: Permisos específicos por rol y endpoint
+- **Escalabilidad**: Fácil agregar nuevas reglas de seguridad
+- **Auditoría**: Logging completo de accesos
+- **Mantenibilidad**: Lógica de seguridad separada del negocio
+
+---
+
+## Patrón Bulkhead
+
+El **Patrón Bulkhead** implementa **aislamiento de recursos** para prevenir que fallos en un módulo afecten a otros. Se implementa en dos niveles:
+
+### Arquitectura
+
+#### Nivel 1: Pools de BD Separados
+
+Cada módulo tiene su propio pool de conexiones a la base de datos:
+
+- **usersMasterPool**: 10 conexiones máximas
+- **projectsMasterPool**: 10 conexiones máximas
+- **tasksMasterPool**: 10 conexiones máximas
+- **statisticsReplicaPool**: 5 conexiones máximas
+
+**Archivo**: `src/config/bulkheadPools.ts`
+
+#### Nivel 2: Límites de Concurrencia
+
+Middleware que limita requests concurrentes por endpoint:
+
+- `/users`: máximo 20 requests concurrentes
+- `/projects`: máximo 20 requests concurrentes
+- `/tasks`: máximo 15 requests concurrentes
+- `/statistics`: máximo 10 requests concurrentes
+
+**Archivo**: `src/middleware/bulkhead.ts`
+**Configuración**: `config.json` (sección `bulkhead.concurrency`)
+
+### Funcionamiento
+
+Cuando llega una request:
+
+1. El middleware intercepta la solicitud
+2. Verifica el contador de requests concurrentes
+3. Si `current < limit`: acepta y procesa
+4. Si `current >= limit`: rechaza con 503 Service Unavailable
+5. Al finalizar, decrementa el contador
+
+### Configuración en config.json
+
+```json
+{
+  "bulkhead": {
+    "concurrency": {
+      "users": 20,
+      "projects": 20,
+      "tasks": 15,
+      "statistics": 10
+    }
+  }
+}
+```
+
+### Ver Métricas de Bulkhead
+
+```bash
+curl http://localhost:3000/bulkhead/metrics
+```
+
+Respuesta:
+
+```json
+{
+  "modules": {
+    "tasks": {
+      "current": 5,
+      "limit": 15,
+      "queueSize": 0,
+      "accepted": 250,
+      "rejected": 12,
+      "utilizationPercent": 33
+    }
+  }
+}
+```
+
+### Probar el Bulkhead
+
+#### Opción 1: Script PowerShell (Windows)
+
+```powershell
+.\tests\run-bulkhead-test.ps1
+```
+
+Este script:
+1. Bombardea `/tasks` con 100 requests concurrentes
+2. Monitorea `/projects` simultáneamente
+3. Muestra métricas de ambos módulos
+
+#### Opción 2: Scripts individuales
+
+```bash
+# Terminal 1: Bombardear /tasks
+node tests/stress-test-tasks.js 100 http://localhost:3000
+
+# Terminal 2: Monitorear /projects
+node tests/monitor-projects.js 30 http://localhost:3000
+```
+
+### Interpretación de Resultados
+
+**Bulkhead funcionando correctamente si**:
+- `/tasks` tiene requests rechazadas (503)
+- `/projects` mantiene latencias bajas (P95 < 1000ms)
+- Ambos módulos mantienen independencia
+
+**Ejemplo de logs exitosos**:
+
+```
+STRESS TEST - /tasks endpoint
+========================================
+Total requests: 100
+Success (200): 85 (85.00%)
+Rejected (503): 15 (15.00%)  ← Bulkhead activo
+Errors: 15 (15.00%)
+
+MONITORING - /projects endpoint
+========================================
+Total requests: 60
+Success (200): 60 (100.00%)  ← Sin afectación
+P95: 45ms                     ← Latencias normales
+P99: 78ms
+```
+
+### Beneficios
+
+- **Aislamiento de fallos**: Un módulo saturado no afecta otros
+- **Protección de recursos**: Previene agotamiento de conexiones BD
+- **Degradación controlada**: Rechazos predecibles bajo carga
+- **Observabilidad**: Métricas en tiempo real por módulo
+
+---
+
+## Autores
 
 - Joaquín Ballara
 - Franco Filardi
