@@ -1,6 +1,8 @@
 -- =======================
 -- Tabla de usuarios
 -- =======================
+-- Tabla de usuarios
+-- =======================
 CREATE TABLE IF NOT EXISTS users (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -216,3 +218,6 @@ INSERT INTO tasks (title, completed, user_id, project_id) VALUES
     ('Gráficos interactivos', FALSE, 5, 5),
     ('Exportación de reportes', FALSE, 5, 5),
     ('Filtros avanzados', FALSE, 5, 5);
+
+-- Refrescar la vista materializada con los datos insertados
+REFRESH MATERIALIZED VIEW project_statistics;

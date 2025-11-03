@@ -37,7 +37,22 @@ const ENDPOINT_PERMISSIONS: EndpointPermission[] = [
   { method: 'GET', path: /^\/projects\/\d+\/tasks\/pending$/, allowedRoles: ['admin', 'developer', 'tester'], requireAuth: true },
   { method: 'GET', path: /^\/users\/\d+\/tasks$/, allowedRoles: ['admin', 'developer', 'tester'], requireAuth: true },
   
-  // Endpoint de salud (público)
+  // Endpoints de estadísticas (solo lectura)
+  { method: 'GET', path: /^\/statistics$/, allowedRoles: ['admin', 'developer', 'tester', 'designer'], requireAuth: true },
+  { method: 'GET', path: /^\/statistics\/.*$/, allowedRoles: ['admin', 'developer', 'tester', 'designer'], requireAuth: true },
+  
+  // Endpoints de configuración (solo admin)
+  { method: 'GET', path: /^\/config$/, allowedRoles: ['admin'], requireAuth: true },
+  { method: 'PUT', path: /^\/config$/, allowedRoles: ['admin'], requireAuth: true },
+  
+  // Endpoints de métricas y monitoreo (público para testing)
+  { method: 'GET', path: /^\/bulkhead\/metrics$/, allowedRoles: ['admin', 'developer', 'tester', 'designer', 'guest'], requireAuth: false },
+  { method: 'GET', path: /^\/health$/, allowedRoles: ['admin', 'developer', 'tester', 'designer', 'guest'], requireAuth: false },
+  
+  // Endpoint de autenticación (público)
+  { method: 'POST', path: /^\/auth\/change-role$/, allowedRoles: ['admin', 'developer', 'tester', 'designer', 'guest'], requireAuth: false },
+  
+  // Endpoint raíz (público)
   { method: 'GET', path: /^\/$/, allowedRoles: ['admin', 'developer', 'tester', 'designer', 'guest'], requireAuth: false },
 ];
 
