@@ -1,20 +1,22 @@
 import { Request, Response } from 'express';
-import Project from '../models/project';
-import Task from '../models/task';
+import { getAllProjects, getProjectById, getProjectTasks as getProjectTasksQuery, getProjectPendingTasks as getProjectPendingTasksQuery } from '../queries/projectQueries';
+import { createProject, updateProject, deleteProject } from '../commands/projectCommands';
 
 export class ProjectController {
+  // QUERY - Obtener todos los proyectos (usa replica)
   static async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const projects = await Project.findAll();
+      const projects = await getAllProjects();
       res.json(projects);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   }
 
+  // QUERY - Obtener un proyecto por ID (usa replica)
   static async getById(req: Request, res: Response): Promise<void> {
     try {
-      const project = await Project.findByPk(req.params.id);
+      const project = await getProjectById(req.params.id);
       if (!project) {
         res.status(404).json({ error: 'Proyecto no encontrado' });
         return;
@@ -25,37 +27,37 @@ export class ProjectController {
     }
   }
 
+  // COMMAND - Crear proyecto (usa master)
   static async create(req: Request, res: Response): Promise<void> {
     try {
       const { name, description } = req.body;
-      const project = await Project.create({ name, description });
+      const project = await createProject(name, description);
       res.status(201).json(project);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   }
 
+  // COMMAND - Actualizar proyecto (usa master)
   static async update(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const [updated] = await Project.update(req.body, { where: { id } });
-
-      if (!updated) {
+      const project = await updateProject(id, req.body);
+      if (!project) {
         res.status(404).json({ error: 'Proyecto no encontrado' });
         return;
       }
-      const updatedProject = await Project.findByPk(id);
-      res.json(updatedProject);
+      res.json(project);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   }
 
+  // COMMAND - Eliminar proyecto (usa master)
   static async delete(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const deleted = await Project.destroy({ where: { id } });
-
+      const deleted = await deleteProject(id);
       if (!deleted) {
         res.status(404).json({ error: 'Proyecto no encontrado' });
         return;
@@ -66,79 +68,35 @@ export class ProjectController {
     }
   }
 
-  // Obtener todas las tareas de un proyecto
+  // QUERY - Obtener todas las tareas de un proyecto (usa replica)
   static async getProjectTasks(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const result = await getProjectTasksQuery(id);
       
-      // Verificar que el proyecto existe
-      const project = await Project.findByPk(id);
-      if (!project) {
+      if (!result) {
         res.status(404).json({ error: 'Proyecto no encontrado' });
         return;
       }
 
-      // Obtener todas las tareas del proyecto
-      const tasks = await Task.findAll({
-        where: { projectId: id }
-      });
-
-      res.json({
-        project: {
-          id: project.id,
-          name: project.name,
-          description: project.description
-        },
-        tasks: tasks,
-        totalTasks: tasks.length
-      });
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   }
 
-  // Obtener todas las tareas pendientes (no completadas) de un proyecto
+  // QUERY - Obtener tareas pendientes de un proyecto (usa replica)
   static async getProjectPendingTasks(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const result = await getProjectPendingTasksQuery(id);
       
-      // Verificar que el proyecto existe
-      const project = await Project.findByPk(id);
-      if (!project) {
+      if (!result) {
         res.status(404).json({ error: 'Proyecto no encontrado' });
         return;
       }
 
-      // Obtener tareas pendientes del proyecto
-      const pendingTasks = await Task.findAll({
-        where: { 
-          projectId: id,
-          completed: false 
-        }
-      });
-
-      // Obtener el total de tareas para calcular progreso
-      const totalTasks = await Task.count({
-        where: { projectId: id }
-      });
-
-      const completedTasks = totalTasks - pendingTasks.length;
-      const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-      res.json({
-        project: {
-          id: project.id,
-          name: project.name,
-          description: project.description
-        },
-        pendingTasks: pendingTasks,
-        summary: {
-          totalTasks: totalTasks,
-          completedTasks: completedTasks,
-          pendingTasks: pendingTasks.length,
-          progressPercentage: progressPercentage
-        }
-      });
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

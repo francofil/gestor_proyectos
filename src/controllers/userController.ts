@@ -1,54 +1,85 @@
 import { Request, Response } from 'express';
-import User from '../models/user';
-import Task from '../models/task';
+import { getAllUsers, getUserById, getUserTasks as getUserTasksQuery } from '../queries/userQueries';
+import { createUser, updateUser, deleteUser } from '../commands/userCommands';
 
 export class UserController {
-  // Obtener todos los usuarios
+  // QUERY - Obtener todos los usuarios (usa replica)
   static async getUsers(req: Request, res: Response): Promise<void> {
     try {
-      const users = await User.findAll();
+      const users = await getAllUsers();
       res.json(users);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   }
 
-  // Crear usuario
+  // QUERY - Obtener un usuario por ID (usa replica)
+  static async getUserById(req: Request, res: Response): Promise<void> {
+    try {
+      const user = await getUserById(req.params.id);
+      if (!user) {
+        res.status(404).json({ error: 'Usuario no encontrado' });
+        return;
+      }
+      res.json(user);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  // COMMAND - Crear usuario (usa master)
   static async createUser(req: Request, res: Response): Promise<void> {
     try {
       const { name, email } = req.body;
-      const user = await User.create({ name, email });
+      const user = await createUser(name, email);
       res.status(201).json(user);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   }
 
-  // Obtener todas las tareas de un usuario específico
-  static async getUserTasks(req: Request, res: Response): Promise<void> {
+  // COMMAND - Actualizar usuario (usa master)
+  static async updateUser(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      
-      // Verificar que el usuario existe
-      const user = await User.findByPk(id);
+      const user = await updateUser(id, req.body);
       if (!user) {
         res.status(404).json({ error: 'Usuario no encontrado' });
         return;
       }
+      res.json(user);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
 
-      // Obtener todas las tareas del usuario
-      const tasks = await Task.findAll({
-        where: { userId: id }
-      });
+  // COMMAND - Eliminar usuario (usa master)
+  static async deleteUser(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const deleted = await deleteUser(id);
+      if (!deleted) {
+        res.status(404).json({ error: 'Usuario no encontrado' });
+        return;
+      }
+      res.status(204).send();
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
 
-      res.json({
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email
-        },
-        tasks: tasks
-      });
+  // QUERY - Obtener todas las tareas de un usuario (usa replica)
+  static async getUserTasks(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const result = await getUserTasksQuery(id);
+      
+      if (!result) {
+        res.status(404).json({ error: 'Usuario no encontrado' });
+        return;
+      }
+
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

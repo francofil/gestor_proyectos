@@ -7,19 +7,23 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      db-master:
+        condition: service_healthy
+      db-replica:
+        condition: service_started
     deploy:
       resources:
-        limits:             #ESCALADO VERTICAL (Dar mas recursos al contenedor, no mas instancias)
-          cpus: "2.0"       # hasta 2 cores
-          memory: 1024M     # hasta 1 GB RAM
+        limits:
+          cpus: "2.0"
+          memory: 1024M
         reservations:
-          cpus: "1.0"       # pide al menos 1 core
-          memory: 512M      # pide al menos 512 MB RAM
+          cpus: "1.0"
+          memory: 512M
 
-  db:
+  # Base de datos MASTER (escritura)
+  db-master:
     image: postgres:14
-    container_name: gestor_db
+    container_name: gestor_db_master
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -28,16 +32,55 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata-master:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./docker/setup-master.sh:/docker-entrypoint-initdb.d/02-setup-master.sh
+    command: postgres -c wal_level=replica -c max_wal_senders=3 -c wal_keep_size=64 -c log_statement=all -c log_destination=stderr -c logging_collector=off
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     deploy:
       resources:
-        limits:             #ESCALADO VERTICAL (Dar mas recursos al contenedor, no mas instancias)
-          cpus: "1.0"       # hasta 1 core
-          memory: 512M      # hasta 512 MB RAM
+        limits:
+          cpus: "1.0"
+          memory: 512M
         reservations:
-          cpus: "0.5"       # pide al menos medio core
-          memory: 256M      # pide al menos 256 MB RAM
+          cpus: "0.5"
+          memory: 256M
+
+  # Base de datos REPLICA (solo lectura)
+  db-replica:
+    image: postgres:14
+    container_name: gestor_db_replica
+    user: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"
+    depends_on:
+      db-master:
+        condition: service_healthy
+    volumes:
+      - pgdata-replica:/var/lib/postgresql/data
+      - ./docker/setup-replica.sh:/tmp/setup-replica.sh:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        bash /tmp/setup-replica.sh
+        exec postgres -c log_statement=all -c log_destination=stderr -c logging_collector=off
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
 
 volumes:
-  pgdata:
+  pgdata-master:
+  pgdata-replica:
