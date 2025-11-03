@@ -1,13 +1,9 @@
-import { sequelizeReplica } from '../config/db';
+import { usersReplicaPool } from '../config/bulkheadPools';
 import { retryQuery } from '../utils/retryQuery';
-
-/**
- * QUERIES - Operaciones de LECTURA (usa sequelizeReplica)
- */
 
 export const getAllUsers = async () => {
   const [results] = await retryQuery(
-    sequelizeReplica,
+    usersReplicaPool,
     'SELECT * FROM users ORDER BY id',
     { raw: true }
   );
@@ -16,7 +12,7 @@ export const getAllUsers = async () => {
 
 export const getUserById = async (id: string) => {
   const [results]: any = await retryQuery(
-    sequelizeReplica,
+    usersReplicaPool,
     'SELECT * FROM users WHERE id = :id',
     { 
       replacements: { id },

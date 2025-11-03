@@ -33,6 +33,32 @@ export interface Config {
     enableLogging: boolean;
     enableCache: boolean;
   };
+  bulkhead?: {
+    pools: {
+      users?: {
+        max: number;
+        min: number;
+      };
+      projects?: {
+        max: number;
+        min: number;
+      };
+      tasks?: {
+        max: number;
+        min: number;
+      };
+      statistics?: {
+        max: number;
+        min: number;
+      };
+    };
+    concurrency: {
+      users: number;
+      projects: number;
+      tasks: number;
+      statistics: number;
+    };
+  };
 }
 
 /**

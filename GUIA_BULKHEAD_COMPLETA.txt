@@ -1,0 +1,431 @@
+================================================================================
+                    PATRÓN BULKHEAD - GUÍA COMPLETA
+             Implementación en Gestor de Proyectos - API REST
+================================================================================
+
+ÍNDICE:
+  2. Cómo Funciona en Esta Implementación
+  3. Criterios para Rechazar Requests
+  4. Paso a Paso: Cómo Correr la Aplicación
+  5. Paso a Paso: Cómo Probar el Bulkhead
+  6. Interpretación de Resultados
+  7. Evidencia para la TFU
+
+================================================================================
+2. CÓMO FUNCIONA EN ESTA IMPLEMENTACIÓN
+================================================================================
+
+La implementación tiene DOS NIVELES de aislamiento:
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        NIVEL 1: POOLS DE BD SEPARADOS                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Cada módulo tiene su propio pool de conexiones a la base de datos:    │
+│                                                                         │
+│  usersMasterPool      → 10 conexiones máximas                          │
+│  projectsMasterPool   → 10 conexiones máximas                          │
+│  tasksMasterPool      → 10 conexiones máximas                          │
+│  statisticsReplicaPool→ 5 conexiones máximas                           │
+│                                                                         │
+│  ARCHIVO: src/config/bulkheadPools.ts                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                 NIVEL 2: LÍMITES DE CONCURRENCIA POR ENDPOINT           │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Middleware que limita requests concurrentes que puede procesar         │
+│  cada endpoint:                                                         │
+│                                                                         │
+│  /users       → máximo 20 requests concurrentes                        │
+│  /projects    → máximo 20 requests concurrentes                        │
+│  /tasks       → máximo 15 requests concurrentes                        │
+│  /statistics  → máximo 10 requests concurrentes                        │
+│                                                                         │
+│  ARCHIVO: src/middleware/bulkhead.ts                                   │
+│  CONFIGURACIÓN: config.json (sección "bulkhead.concurrency")           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+FLUJO CUANDO LLEGA UNA REQUEST:
+
+  1. Request llega a un endpoint (ej: GET /tasks)
+  2. Middleware de Bulkhead intercepta la request
+  3. Verifica el contador de requests concurrentes actuales
+  4. Si current < limit:
+     → Acepta la request
+     → Incrementa el contador
+     → Procesa la operación
+     → Al terminar, decrementa el contador
+  5. Si current >= limit:
+     → RECHAZA la request con 503 Service Unavailable
+     → Respuesta inmediata (no espera)
+     → Incrementa contador de rechazos
+
+
+================================================================================
+3. CRITERIOS PARA RECHAZAR UNA REQUEST
+================================================================================
+
+Una request es RECHAZADA cuando:
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  CONDICIÓN: current >= limit                                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  current = Número de requests actualmente en procesamiento             │
+│  limit   = Límite máximo configurado para ese módulo                   │
+│                                                                         │
+│  Ejemplo para /tasks (limit = 15):                                     │
+│    • Requests 1-15: ACEPTADAS (current va de 0→15)                     │
+│    • Request 16:    RECHAZADA (current = 15 >= limit = 15)             │
+│    • Request 17:    RECHAZADA (current = 15 >= limit = 15)             │
+│    • ...hasta que alguna de las 15 termine                             │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+CÓDIGO ESPECÍFICO (src/middleware/bulkhead.ts líneas 46-62):
+
+  const acquire = (semaphore: BulkheadSemaphore): boolean => {
+    if (semaphore.current < semaphore.limit) {
+      semaphore.current++;
+      semaphore.accepted++;
+      return true;  // ✅ ACEPTADA
+    }
+    semaphore.rejected++;
+    return false;   // 🚫 RECHAZADA
+  };
+
+RESPUESTA DE RECHAZO:
+
+  HTTP Status: 503 Service Unavailable
+  
+  Body:
+  {
+    "error": "Service Temporarily Unavailable",
+    "message": "El módulo tasks está procesando demasiadas requests. 
+                Por favor, reintente en unos momentos.",
+    "module": "tasks",
+    "currentLoad": 15,
+    "maxConcurrency": 15,
+    "bulkheadActive": true
+  }
+
+¿POR QUÉ 503 Y NO OTRO CÓDIGO?
+
+  • 503 = Service Unavailable (temporalmente no disponible)
+  • Indica al cliente que puede reintentar después
+  • Es el código HTTP estándar para este escenario
+  • Permite a balanceadores de carga redirigir tráfico
+  • Respuesta RÁPIDA (100-300ms) vs timeout (30000ms)
+
+
+================================================================================
+4. PASO A PASO: CÓMO CORRER LA APLICACIÓN
+================================================================================
+
+REQUISITOS PREVIOS:
+  • Docker Desktop instalado y corriendo
+  • Node.js 20+ instalado
+  • PowerShell o terminal
+
+────────────────────────────────────────────────────────────────────────────
+
+OPCIÓN A: CON DOCKER (Recomendado para TFU)
+
+  Paso 1: Abrir PowerShell en la carpeta del proyecto
+    
+    cd C:\Users\stuff\Desktop\gestor_proyectos
+
+  Paso 2: Levantar todos los servicios con Docker Compose
+    
+    docker-compose up -d
+
+    ⏳ Esperar 30-60 segundos a que inicie todo
+
+  Paso 3: Verificar que esté corriendo
+    
+    curl http://localhost:3000/health
+
+    ✅ Deberías ver:
+    {
+      "status": "healthy",
+      "master": "connected",
+      "replica": "connected",
+      "bulkhead": "active"
+    }
+
+────────────────────────────────────────────────────────────────────────────
+
+OPCIÓN B: LOCAL (Para desarrollo)
+
+  Paso 1: Levantar solo la base de datos con Docker
+    
+    docker-compose up db-master
+
+  Paso 2: En otra terminal, instalar dependencias
+    
+    npm install
+
+  Paso 3: Ejecutar la API en modo desarrollo
+    
+    npm run dev
+
+    ✅ Deberías ver:
+    ✅ Pools de Bulkhead inicializados correctamente
+    ✅ Conexión a BD MASTER establecida
+    🚀 Servidor corriendo en http://localhost:3000
+
+================================================================================
+5. PASO A PASO: CÓMO PROBAR EL BULKHEAD
+================================================================================
+
+OBJETIVO DE LA PRUEBA:
+  Demostrar que cuando /tasks se satura, /projects sigue funcionando
+  normalmente, comprobando el aislamiento del patrón Bulkhead.
+
+────────────────────────────────────────────────────────────────────────────
+
+PRUEBA AUTOMÁTICA (Recomendada):
+
+  Abre una terminal PowerShell en la carpeta del proyecto:
+
+    node tests/stress-test-tasks.js 100 http://localhost:3000
+
+  Esto ejecutará:
+    • 100 requests concurrentes a GET /tasks
+    • Medirá cuántas se aceptan y cuántas se rechazan
+    • Mostrará latencias (P50, P95, P99)
+    • Indicará si el Bulkhead está funcionando
+
+────────────────────────────────────────────────────────────────────────────
+
+PRUEBA MANUAL (Paso a Paso):
+
+  Terminal 1: Monitorear /projects (30 segundos)
+    
+    node tests/monitor-projects.js 30 http://localhost:3000
+
+  Terminal 2: Bombardear /tasks (espera 5 segundos después de iniciar Terminal 1)
+    
+    node tests/stress-test-tasks.js 100 http://localhost:3000
+
+  Terminal 3: Ver métricas en tiempo real
+    
+    curl http://localhost:3000/bulkhead/metrics
+
+────────────────────────────────────────────────────────────────────────────
+
+VERIFICACIÓN DEL AISLAMIENTO:
+
+  Durante o después del bombardeo, verificar que /projects funcione:
+
+    curl http://localhost:3000/projects
+
+  ✅ Debería responder con:
+    • Status 200 OK
+    • Lista de proyectos
+    • Sin errores
+    • Latencia normal (<500ms)
+
+────────────────────────────────────────────────────────────────────────────
+
+CONSULTAR MÉTRICAS FINALES:
+
+    curl http://localhost:3000/bulkhead/metrics
+
+  Buscar en la respuesta:
+
+    "tasks": {
+      "rejected": 55,      ← Requests rechazadas (Bulkhead activo)
+      "accepted": 45,      ← Requests procesadas
+      "utilizationPercent": 100
+    },
+    "projects": {
+      "rejected": 0,       ← Sin rechazo (no afectado)
+      "accepted": 60,
+      "utilizationPercent": 5
+    }
+
+
+================================================================================
+6. INTERPRETACIÓN DE RESULTADOS
+================================================================================
+
+QUÉ SIGNIFICA CADA MÉTRICA:
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  accepted (requests aceptadas)                                          │
+│  → Número de requests que ENTRARON al endpoint                         │
+│  → Fueron procesadas normalmente                                       │
+│  → Respuesta 200 OK                                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  rejected (requests rechazadas)                                         │
+│  → Número de requests que EXCEDIERON el límite                         │
+│  → Fueron rechazadas inmediatamente                                    │
+│  → Respuesta 503 Service Unavailable                                   │
+│  → ESTO ES BUENO: Evita colapso del sistema                            │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  utilizationPercent (porcentaje de utilización)                         │
+│  → (current / limit) * 100                                             │
+│  → 100% = Límite alcanzado, se están rechazando requests              │
+│  → 0-50% = Carga normal                                                │
+│  → 50-90% = Carga alta pero manejable                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+
+────────────────────────────────────────────────────────────────────────────
+
+ESCENARIOS Y SU INTERPRETACIÓN:
+
+✅ BULKHEAD FUNCIONANDO CORRECTAMENTE:
+
+  /tasks bombardeado:
+    • accepted: 40-50 requests
+    • rejected: 50-60 requests
+    • utilizationPercent: 100%
+    • P95: 400-600ms
+
+  /projects funcionando normal:
+    • accepted: todas las que llegaron
+    • rejected: 0
+    • utilizationPercent: 5-20%
+    • P95: <500ms
+
+  CONCLUSIÓN: El problema en /tasks NO AFECTÓ a /projects
+               → Aislamiento exitoso ✅
+
+────────────────────────────────────────────────────────────────────────────
+
+❌ SIN BULKHEAD (Escenario comparativo):
+
+  /tasks bombardeado:
+    • Todas las requests entrarían al sistema
+    • Pool de BD compartido se saturaría
+    • Latencias altísimas (>5000ms)
+    • Posibles timeouts
+
+  /projects afectado:
+    • También experimentaría alta latencia
+    • Errores de timeout en BD
+    • utilizationPercent: 100% (compartiendo recursos)
+
+  CONCLUSIÓN: El problema en /tasks AFECTARÍA a /projects
+               → Sistema completo degradado ❌
+
+
+================================================================================
+7. EVIDENCIA PARA LA TFU
+================================================================================
+
+CAPTURAS/OUTPUTS RECOMENDADOS:
+
+1. CONFIGURACIÓN DE BULKHEAD:
+   
+   Archivo: config.json
+   Mostrar la sección:
+   {
+     "bulkhead": {
+       "pools": {
+         "tasks": { "max": 10, "min": 2 }
+       },
+       "concurrency": {
+         "tasks": 15  ← Límite que se probó
+       }
+     }
+   }
+
+2. RESULTADO DEL BOMBARDEO:
+   
+   node tests/stress-test-tasks.js 100 http://localhost:3000
+   
+   Capturar la salida completa mostrando:
+   • Total de requests: 100
+   • Rechazadas por Bulkhead (503): ~55
+   • Mensaje: "Bulkhead funcionando"
+
+3. MÉTRICAS DE BULKHEAD:
+   
+   curl http://localhost:3000/bulkhead/metrics
+   
+   Mostrar los contadores de accepted/rejected para tasks y projects
+
+4. VERIFICACIÓN DE /projects:
+   
+   curl http://localhost:3000/projects
+   
+   Mostrar que responde 200 OK durante/después del bombardeo
+
+5. LOGS DE LA APLICACIÓN:
+   
+   docker logs gestor_api
+   
+   Buscar líneas como:
+   "✅ Pools de Bulkhead inicializados correctamente"
+   "🚫 [Bulkhead] Request rechazada en tasks: límite de 15 alcanzado"
+
+────────────────────────────────────────────────────────────────────────────
+
+ESTRUCTURA DEL INFORME:
+
+1. INTRODUCCIÓN AL PATRÓN
+   • Definición de Bulkhead
+   • Atributo de calidad: Disponibilidad
+   • Analogía del barco
+
+2. IMPLEMENTACIÓN
+   • Arquitectura con dos niveles
+   • Código relevante (middleware, pools)
+   • Configuración utilizada
+
+3. CRITERIOS DE RECHAZO
+   • Explicar la lógica: current >= limit
+   • Por qué se usa 503
+   • Beneficio del rechazo rápido
+
+4. VALIDACIÓN EMPÍRICA
+   • Procedimiento de prueba
+   • Resultados obtenidos (con capturas)
+   • Interpretación
+
+5. CONCLUSIÓN
+   • Bulkhead mejoró la disponibilidad
+   • Aislamiento comprobado
+   • Sistema más resiliente
+
+
+================================================================================
+RESUMEN EJECUTIVO
+================================================================================
+
+¿QUÉ ES BULKHEAD?
+  → Patrón que aísla recursos por módulo para contener fallos
+
+¿CÓMO SE RECHAZA UNA REQUEST?
+  → Cuando current >= limit
+  → Respuesta: 503 Service Unavailable
+  → Rechazo inmediato (rápido, no timeout)
+
+¿CÓMO CORRER?
+  → docker-compose up -d
+
+¿CÓMO PROBAR?
+  → node tests/stress-test-tasks.js 100 http://localhost:3000
+  → Verificar que /projects siga funcionando
+
+¿QUÉ DEMUESTRA?
+  → /tasks saturado → Rechaza 55% de requests
+  → /projects normal → 0% rechazos
+  → Aislamiento exitoso = Disponibilidad mejorada ✅
+
+ARCHIVOS CLAVE:
+  • src/config/bulkheadPools.ts        → Pools separados
+  • src/middleware/bulkhead.ts         → Lógica de rechazo
+  • config.json                        → Configuración de límites
+  • tests/stress-test-tasks.js         → Script de prueba
+  • RESULTADOS_BULKHEAD.md            → Evidencia completa
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

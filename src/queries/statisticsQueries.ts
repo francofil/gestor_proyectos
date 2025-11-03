@@ -1,13 +1,9 @@
-import { sequelizeReplica } from '../config/db';
+import { statisticsReplicaPool } from '../config/bulkheadPools';
 import { retryQuery } from '../utils/retryQuery';
-
-/**
- * QUERIES - Operaciones de LECTURA sobre la vista materializada (usa sequelizeReplica)
- */
 
 export const getProjectStatistics = async () => {
   const [results] = await retryQuery(
-    sequelizeReplica,
+    statisticsReplicaPool,
     'SELECT * FROM project_statistics ORDER BY project_id',
     { raw: true }
   );
@@ -16,7 +12,7 @@ export const getProjectStatistics = async () => {
 
 export const getProjectStatisticsById = async (projectId: string) => {
   const [results]: any = await retryQuery(
-    sequelizeReplica,
+    statisticsReplicaPool,
     'SELECT * FROM project_statistics WHERE project_id = :projectId',
     { 
       replacements: { projectId },
@@ -30,7 +26,7 @@ export const refreshProjectStatistics = async () => {
   // Esta operación refresca la vista materializada (es una escritura, pero en el contexto de lectura)
   // En un sistema CQRS estricto, esto podría ejecutarse en el master y luego replicarse
   await retryQuery(
-    sequelizeReplica,
+    statisticsReplicaPool,
     'REFRESH MATERIALIZED VIEW project_statistics',
     {}
   );

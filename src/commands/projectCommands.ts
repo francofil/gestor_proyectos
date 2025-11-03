@@ -1,13 +1,9 @@
-import { sequelizeMaster } from '../config/db';
+import { projectsMasterPool } from '../config/bulkheadPools';
 import { retryQuery } from '../utils/retryQuery';
-
-/**
- * COMMANDS - Operaciones de ESCRITURA (usa sequelizeMaster)
- */
 
 export const createProject = async (name: string, description: string) => {
   const [result]: any = await retryQuery(
-    sequelizeMaster,
+    projectsMasterPool,
     'INSERT INTO projects (name, description, created_at, updated_at) VALUES (:name, :description, NOW(), NOW()) RETURNING *',
     {
       replacements: { name, description }
@@ -34,7 +30,7 @@ export const updateProject = async (id: string, data: { name?: string; descripti
   fields.push('updated_at = NOW()');
   
   const [result]: any = await retryQuery(
-    sequelizeMaster,
+    projectsMasterPool,
     `UPDATE projects SET ${fields.join(', ')} WHERE id = :id RETURNING *`,
     {
       replacements
@@ -46,7 +42,7 @@ export const updateProject = async (id: string, data: { name?: string; descripti
 
 export const deleteProject = async (id: string) => {
   await retryQuery(
-    sequelizeMaster,
+    projectsMasterPool,
     'DELETE FROM projects WHERE id = :id',
     {
       replacements: { id }
