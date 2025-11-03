@@ -6,6 +6,15 @@ export class TaskController {
   // QUERY - Obtener todas las tareas (usa replica)
   static async getAll(req: Request, res: Response): Promise<void> {
     try {
+      // Soporte para delay artificial (para pruebas de Bulkhead)
+      const delayParam = req.query.delay;
+      if (delayParam) {
+        const delay = parseInt(delayParam as string);
+        if (!isNaN(delay) && delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+      
       const tasks = await getAllTasks();
       res.json(tasks);
     } catch (err: any) {
