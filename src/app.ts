@@ -1,5 +1,6 @@
 import express, { Application, Request, Response } from 'express';
 import { sequelizeMaster, sequelizeReplica } from './config/db';
+import { GatekeeperMiddleware } from './middleware/gatekeeper';
 import { configReloadMiddleware } from './middleware/configReload';
 import { getConfig } from './config/externalConfig';
 import { bulkheadMetricsMiddleware } from './middleware/bulkhead';
@@ -18,7 +19,10 @@ app.use(express.json());
 // Middleware para recargar configuración en cada request
 app.use(configReloadMiddleware);
 
-// Endpoints
+// Aplicar el patrón Gatekeeper a todas las rutas
+app.use(GatekeeperMiddleware.validate);
+
+// Endpoints protegidos
 app.use('/users', userRoutes);
 app.use('/projects', projectRoutes);
 app.use('/tasks', taskRoutes);
@@ -28,9 +32,12 @@ app.use('/config', configRoutes);
 // Métricas de Bulkhead Pattern
 app.get('/bulkhead/metrics', bulkheadMetricsMiddleware);
 
-// Test
+// Test endpoint
 app.get('/', (req: Request, res: Response) => {
-  res.send('API funcionando con Master-Replica CQRS + Bulkhead Pattern');
+  res.json({
+    message: 'API running',
+    patterns: ['CQRS', 'Bulkhead', 'Gatekeeper', 'Master-Replica']
+  });
 });
 
 // Health check
@@ -42,14 +49,13 @@ app.get('/health', async (req: Request, res: Response) => {
     try {
       await sequelizeReplica.authenticate();
     } catch {
-      replicaStatus = 'using-master (Bulkhead active)';
+      replicaStatus = 'using-master';
     }
     
     res.json({
       status: 'healthy',
       master: 'connected',
-      replica: replicaStatus,
-      bulkhead: 'active'
+      replica: replicaStatus
     });
   } catch (err: any) {
     res.status(500).json({
@@ -59,6 +65,37 @@ app.get('/health', async (req: Request, res: Response) => {
   }
 });
 
+// Endpoint para cambiar roles (para probar auth del gatekeeper)
+app.post('/auth/change-role', (req: Request, res: Response) => {
+  const { role } = req.body;
+  const validRoles = ['admin', 'developer', 'tester', 'designer', 'guest'];
+  
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({ 
+      error: 'Rol inválido',
+      validRoles 
+    });
+  }
+
+  res.json({ 
+    message: `Para usar el rol: ${role}`,
+    instructions: `Agrega el header: "x-user-role: ${role}" a tus solicitudes`,
+    permissions: getPermissionsByRole(role)
+  });
+});
+
+// Mostrar que permisos tiene cada rol
+function getPermissionsByRole(role: string) {
+  const permissions: Record<string, string[]> = {
+    admin: ['Todos los permisos', 'Crear/leer/actualizar/eliminar usuarios, proyectos y tareas'],
+    developer: ['Crear/leer/actualizar proyectos y tareas', 'Leer usuarios'],
+    tester: ['Leer todos los recursos', 'Ver tareas de proyectos'],
+    designer: ['Leer todos los recursos'],
+    guest: ['Solo endpoint público (/)']
+  };
+  return permissions[role] || [];
+}
+
 // Función para conectar con reintentos
 async function connectWithRetry(maxRetries = 10, delay = 3000) {
   for (let i = 0; i < maxRetries; i++) {
@@ -66,17 +103,17 @@ async function connectWithRetry(maxRetries = 10, delay = 3000) {
       await sequelizeMaster.authenticate();
       console.log('Conexión a BD MASTER establecida');
       
-      // Intentar conectar réplica, pero no es crítico para Bulkhead
+      // Intentar conectar réplica, pero no es crítico
       try {
         await sequelizeReplica.authenticate();
         console.log('Conexión a BD REPLICA establecida');
       } catch (replicaErr: any) {
-        console.log('[WARNING] Réplica no disponible, usando solo Master (Bulkhead sigue funcionando)');
+        console.log('Réplica no disponible, usando solo Master');
       }
       
       return true;
     } catch (err: any) {
-      console.log(`[WARNING] Intento ${i + 1}/${maxRetries} fallido: ${err.message}`);
+      console.log(`Intento ${i + 1}/${maxRetries} fallido: ${err.message}`);
       if (i < maxRetries - 1) {
         console.log(`Reintentando en ${delay/1000} segundos...`);
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -96,6 +133,6 @@ connectWithRetry()
     });
   })
   .catch((err: Error) => {
-    console.error('❌ Error fatal al conectar la BD:', err);
+    console.error('Error fatal al conectar la BD:', err);
     process.exit(1);
   });

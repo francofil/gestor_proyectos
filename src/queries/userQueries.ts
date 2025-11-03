@@ -21,3 +21,32 @@ export const getUserById = async (id: string) => {
   );
   return results[0];
 };
+
+export const getUserTasks = async (userId: string) => {
+  const [user]: any = await retryQuery(
+    usersReplicaPool,
+    'SELECT * FROM users WHERE id = :userId',
+    {
+      replacements: { userId },
+      raw: true
+    }
+  );
+
+  if (!user || user.length === 0) {
+    return null;
+  }
+
+  const [tasks] = await retryQuery(
+    usersReplicaPool,
+    'SELECT * FROM tasks WHERE userId = :userId ORDER BY id',
+    {
+      replacements: { userId },
+      raw: true
+    }
+  );
+
+  return {
+    user: user[0],
+    tasks
+  };
+};

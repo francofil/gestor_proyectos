@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getAllUsers, getUserById } from '../queries/userQueries';
+import { getAllUsers, getUserById, getUserTasks as getUserTasksQuery } from '../queries/userQueries';
 import { createUser, updateUser, deleteUser } from '../commands/userCommands';
 
 export class UserController {
@@ -63,6 +63,23 @@ export class UserController {
         return;
       }
       res.status(204).send();
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  // QUERY - Obtener todas las tareas de un usuario (usa replica)
+  static async getUserTasks(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const result = await getUserTasksQuery(id);
+      
+      if (!result) {
+        res.status(404).json({ error: 'Usuario no encontrado' });
+        return;
+      }
+
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

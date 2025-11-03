@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getAllProjects, getProjectById } from '../queries/projectQueries';
+import { getAllProjects, getProjectById, getProjectTasks as getProjectTasksQuery, getProjectPendingTasks as getProjectPendingTasksQuery } from '../queries/projectQueries';
 import { createProject, updateProject, deleteProject } from '../commands/projectCommands';
 
 export class ProjectController {
@@ -63,6 +63,40 @@ export class ProjectController {
         return;
       }
       res.status(204).send();
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  // QUERY - Obtener todas las tareas de un proyecto (usa replica)
+  static async getProjectTasks(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const result = await getProjectTasksQuery(id);
+      
+      if (!result) {
+        res.status(404).json({ error: 'Proyecto no encontrado' });
+        return;
+      }
+
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  // QUERY - Obtener tareas pendientes de un proyecto (usa replica)
+  static async getProjectPendingTasks(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const result = await getProjectPendingTasksQuery(id);
+      
+      if (!result) {
+        res.status(404).json({ error: 'Proyecto no encontrado' });
+        return;
+      }
+
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

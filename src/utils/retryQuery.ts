@@ -23,25 +23,16 @@ export const retryQuery = async <T = any>(
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
     try {
       const result = await sequelizeInstance.query(query, options);
-      if (attempt > 1 && config.features.enableLogging) {
-        console.log(`Query exitosa después de ${attempt - 1} reintento(s)`);
-      }
       return result as T;
     } catch (error: any) {
       lastError = error;
     
       
       if (attempt > MAX_RETRIES) {
-        if (config.features.enableLogging) {
-          console.error(`Máximo de reintentos alcanzado`);
-        }
         throw error;
       }
       
       const delay = calculateDelay(attempt);
-      if (config.features.enableLogging) {
-        console.warn(`Intento ${attempt}/${MAX_RETRIES} falló: ${error.message}. Reintentando en ${delay}ms...`);
-      }
       await sleep(delay);
     }
   }

@@ -51,10 +51,10 @@ function makeRequest(id) {
         
         if (res.statusCode === 200) {
           success++;
-          console.log(`✅ Request ${id} a /projects: ${responseTime}ms`);
+          console.log(`Request ${id} to /projects: ${responseTime}ms`);
         } else {
           errors++;
-          console.log(`❌ Request ${id} a /projects: ERROR ${res.statusCode} (${responseTime}ms)`);
+          console.log(`Request ${id} to /projects: ERROR ${res.statusCode} (${responseTime}ms)`);
         }
         
         resolve();
@@ -66,7 +66,7 @@ function makeRequest(id) {
       responseTimes.push(responseTime);
       completed++;
       errors++;
-      console.log(`❌ Request ${id} a /projects: NETWORK ERROR - ${err.message}`);
+      console.log(`Request ${id} to /projects: NETWORK ERROR - ${err.message}`);
       resolve();
     });
     
@@ -74,7 +74,7 @@ function makeRequest(id) {
       req.destroy();
       completed++;
       errors++;
-      console.log(`⏱️  Request ${id} a /projects: TIMEOUT`);
+      console.log(`Request ${id} to /projects: TIMEOUT`);
       resolve();
     });
   });
@@ -95,12 +95,12 @@ function calculatePercentile(arr, percentile) {
  */
 async function runMonitoring() {
   console.log('\n========================================');
-  console.log('📊 MONITOREO - Endpoint /projects');
+  console.log('MONITORING - /projects endpoint');
   console.log('========================================');
   console.log(`API URL: ${API_URL}`);
   console.log(`Endpoint: ${ENDPOINT}`);
-  console.log(`Duración: ${DURATION_SECONDS} segundos`);
-  console.log(`Intervalo: ${REQUEST_INTERVAL}ms entre requests`);
+  console.log(`Duration: ${DURATION_SECONDS} seconds`);
+  console.log(`Interval: ${REQUEST_INTERVAL}ms`);
   console.log('========================================\n');
   
   let requestId = 1;
@@ -119,7 +119,7 @@ async function runMonitoring() {
   
   // Calcular estadísticas
   if (responseTimes.length === 0) {
-    console.log('❌ No se obtuvieron métricas');
+    console.log('No metrics obtained');
     return;
   }
   
@@ -132,32 +132,32 @@ async function runMonitoring() {
   
   // Mostrar resultados
   console.log('\n========================================');
-  console.log('📊 RESULTADOS DEL MONITOREO');
+  console.log('MONITORING RESULTS');
   console.log('========================================');
-  console.log(`Total de requests: ${completed}`);
-  console.log(`Exitosas (200): ${success} (${((success/completed)*100).toFixed(2)}%)`);
-  console.log(`Errores: ${errors} (${((errors/completed)*100).toFixed(2)}%)`);
-  console.log(`Tiempo total: ${totalTime}ms`);
+  console.log(`Total requests: ${completed}`);
+  console.log(`Success (200): ${success} (${((success/completed)*100).toFixed(2)}%)`);
+  console.log(`Errors: ${errors} (${((errors/completed)*100).toFixed(2)}%)`);
+  console.log(`Total time: ${totalTime}ms`);
   console.log(`Throughput: ${(completed / (totalTime / 1000)).toFixed(2)} req/s`);
   console.log('');
-  console.log('📈 LATENCIAS DE /projects:');
-  console.log(`  Mínima: ${minResponseTime}ms`);
-  console.log(`  Promedio: ${avgResponseTime.toFixed(2)}ms`);
-  console.log(`  P50 (mediana): ${p50}ms`);
+  console.log('LATENCIES (/projects):');
+  console.log(`  Min: ${minResponseTime}ms`);
+  console.log(`  Avg: ${avgResponseTime.toFixed(2)}ms`);
+  console.log(`  P50: ${p50}ms`);
   console.log(`  P95: ${p95}ms`);
   console.log(`  P99: ${p99}ms`);
-  console.log(`  Máxima: ${maxResponseTime}ms`);
+  console.log(`  Max: ${maxResponseTime}ms`);
   console.log('========================================\n');
   
   // Interpretación para Bulkhead
   if (p99 < 1000 && errors === 0) {
-    console.log('✅ EXCELENTE: /projects mantiene latencias bajas y sin errores');
-    console.log('   El patrón Bulkhead está protegiendo este endpoint del estrés en /tasks');
+    console.log('EXCELLENT: /projects maintains low latencies with no errors');
+    console.log('Bulkhead pattern is protecting this endpoint from stress in /tasks');
   } else if (p99 < 3000) {
-    console.log('⚠️  ACEPTABLE: /projects muestra algo de degradación pero sigue operativo');
+    console.log('ACCEPTABLE: /projects shows some degradation but still operational');
   } else {
-    console.log('❌ DEGRADADO: /projects muestra alta latencia o errores');
-    console.log('   El aislamiento de Bulkhead puede no estar funcionando correctamente');
+    console.log('DEGRADED: /projects shows high latency or errors');
+    console.log('Bulkhead isolation may not be working properly');
   }
 }
 
