@@ -1,9 +1,10 @@
-import { tasksReplicaPool } from '../config/bulkheadPools';
+import { tasksMasterPool, tasksReplicaPool } from '../config/bulkheadPools';
 import { retryQuery } from '../utils/retryQuery';
 
 export const getAllTasks = async () => {
+  // Usar master temporalmente porque la réplica no está disponible
   const [results] = await retryQuery(
-    tasksReplicaPool,
+    tasksMasterPool,
     'SELECT * FROM tasks ORDER BY id',
     { raw: true }
   );
@@ -11,8 +12,9 @@ export const getAllTasks = async () => {
 };
 
 export const getTaskById = async (id: string) => {
+  // Usar master temporalmente porque la réplica no está disponible
   const [results]: any = await retryQuery(
-    tasksReplicaPool,
+    tasksMasterPool,
     'SELECT * FROM tasks WHERE id = :id',
     { 
       replacements: { id },
