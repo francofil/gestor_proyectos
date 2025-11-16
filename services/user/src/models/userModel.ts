@@ -1,27 +1,22 @@
-import { DataTypes, Model, Optional } from "sequelize";
-import { sequelize } from "../config/db";
+import { DataTypes, Model, Optional } from 'sequelize';
+import { sequelize } from './config/db';
 
-// Definir la interfaz User
 interface UserAttributes {
   id: number;
   name: string;
   email: string;
+  password: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-// Para creación, "id" es opcional
-interface UserCreationAttributes extends Optional<UserAttributes, "id"> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id'> {}
 
-// Clase User que extiende Model de Sequelize
-class User
-  extends Model<UserAttributes, UserCreationAttributes>
-  implements UserAttributes
-{
+class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: number;
   public name!: string;
   public email!: string;
-
+  public password!: string;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -42,20 +37,35 @@ User.init(
       unique: true,
       allowNull: false,
     },
+    password: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
     createdAt: {
       type: DataTypes.DATE,
-      field: "created_at",
+      field: 'created_at',
     },
     updatedAt: {
       type: DataTypes.DATE,
-      field: "updated_at",
+      field: 'updated_at',
     },
   },
   {
     sequelize,
-    tableName: "users",
+    tableName: 'users',
     timestamps: true,
+    underscored: true,
   }
 );
 
-export default User;
+export const userModel = {
+  async getAll() {
+    const users = await User.findAll();
+    return users;
+  },
+
+  async getById(id: number) {
+    const user = await User.findByPk(id);
+    return user;
+  }
+};

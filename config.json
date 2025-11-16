@@ -1,0 +1,31 @@
+{
+  "database": {
+    "master": {
+      "host": "db-master",
+      "port": 5432,
+      "database": "gestor_proyectos",
+      "user": "postgres",
+      "password": "1234"
+    },
+    "replica": {
+      "host": "db-replica",
+      "port": 5432,
+      "database": "gestor_proyectos",
+      "user": "postgres",
+      "password": "1234"
+    }
+  },
+  "server": {
+    "port": 3000,
+    "environment": "development"
+  },
+  "retry": {
+    "maxRetries": 3,
+    "initialDelay": 1000,
+    "backoffMultiplier": 2
+  },
+  "features": {
+    "enableLogging": true,
+    "enableCache": false
+  }
+}

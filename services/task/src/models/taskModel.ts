@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import { sequelize } from '../config/db';
+import { sequelize } from './config/db';
 
 interface TaskAttributes {
   id: number;
@@ -13,14 +13,12 @@ interface TaskAttributes {
 
 interface TaskCreationAttributes extends Optional<TaskAttributes, 'id' | 'completed'> {}
 
-class Task extends Model<TaskAttributes, TaskCreationAttributes>
-  implements TaskAttributes {
+class Task extends Model<TaskAttributes, TaskCreationAttributes> implements TaskAttributes {
   public id!: number;
   public title!: string;
   public completed!: boolean;
   public userId!: number;
   public projectId!: number;
-
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -63,7 +61,36 @@ Task.init(
     sequelize,
     tableName: 'tasks',
     timestamps: true,
+    underscored: true,
   }
 );
 
-export default Task;
+export const taskModel = {
+  async getAll() {
+    const tasks = await Task.findAll();
+    return tasks;
+  },
+
+  async getById(id: number) {
+    const task = await Task.findByPk(id);
+    return task;
+  },
+
+  async create(taskData: any) {
+    const { title, userId, projectId } = taskData;
+    const task = await Task.create({ title, userId, projectId });
+    return task;
+  },
+
+  async update(id: number, taskData: any) {
+    const [updated] = await Task.update(taskData, { where: { id } });
+    if (!updated) return null;
+    const task = await Task.findByPk(id);
+    return task;
+  },
+
+  async delete(id: number) {
+    const deleted = await Task.destroy({ where: { id } });
+    return deleted > 0;
+  }
+};

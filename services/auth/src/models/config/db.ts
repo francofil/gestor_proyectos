@@ -9,7 +9,7 @@ export const sequelize = new Sequelize(
     port: Number(process.env.DB_PORT) || 5432,
     dialect: 'postgres',
     retry: {
-      max: 10 // intenta 10 veces antes de fallar
+      max: 10
     }
   }
 );

@@ -1,0 +1,22 @@
+{
+  "name": "orchestrator",
+  "version": "1.0.0",
+  "main": "dist/orchestratorService.js",
+  "scripts": {
+    "start": "node dist/orchestratorService.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/orchestratorService.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.14.3",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.1"
+  }
+}
