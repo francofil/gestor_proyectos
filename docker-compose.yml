@@ -4,13 +4,13 @@ services:
       context: ./orchestrator
     container_name: orchestrator
     ports:
-      - "3000:3000"
+      - "${ORCHESTRATOR_PORT:-3000}:${ORCHESTRATOR_PORT:-3000}"
     environment:
-      PORT: 3000
-      AUTH_SERVICE_URL: http://auth-service:3001
-      USER_SERVICE_URL: http://user-service:3002
-      PROJECT_SERVICE_URL: http://project-service:3003
-      TASK_SERVICE_URL: http://task-service:3004
+      PORT: ${ORCHESTRATOR_PORT:-3000}
+      AUTH_SERVICE_URL: http://auth-service:${AUTH_SERVICE_PORT:-3001}
+      USER_SERVICE_URL: http://user-service:${USER_SERVICE_PORT:-3002}
+      PROJECT_SERVICE_URL: http://project-service:${PROJECT_SERVICE_PORT:-3003}
+      TASK_SERVICE_URL: http://task-service:${TASK_SERVICE_PORT:-3004}
     depends_on:
       - auth-service
       - user-service
@@ -22,7 +22,7 @@ services:
       context: ./services/auth
     container_name: auth-service
     environment:
-      PORT: 3001
+      PORT: ${AUTH_SERVICE_PORT:-3001}
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASS: ${POSTGRES_PASSWORD}
@@ -37,7 +37,7 @@ services:
       context: ./services/user
     container_name: user-service
     environment:
-      PORT: 3002
+      PORT: ${USER_SERVICE_PORT:-3002}
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASS: ${POSTGRES_PASSWORD}
@@ -51,7 +51,7 @@ services:
       context: ./services/project
     container_name: project-service
     environment:
-      PORT: 3003
+      PORT: ${PROJECT_SERVICE_PORT:-3003}
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASS: ${POSTGRES_PASSWORD}
@@ -65,7 +65,7 @@ services:
       context: ./services/task
     container_name: task-service
     environment:
-      PORT: 3004
+      PORT: ${TASK_SERVICE_PORT:-3004}
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASS: ${POSTGRES_PASSWORD}

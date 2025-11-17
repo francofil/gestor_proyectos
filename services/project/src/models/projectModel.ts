@@ -67,11 +67,13 @@ ProjectUser.init(
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      primaryKey: true,
       field: 'user_id',
     },
     projectId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      primaryKey: true,
       field: 'project_id',
     },
     role: {

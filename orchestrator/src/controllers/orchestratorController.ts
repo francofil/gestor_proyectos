@@ -289,28 +289,34 @@ router.post('/projects/complete', authMiddleware, async (req, res) => {
       
       for (const task of initialTasks) {
         try {
-          // Verificar que el userId de la tarea esté en el equipo
-          const userInTeam = workflow.teamMembers.find(m => m.id === task.userId);
+          let assignedUser = null;
           
-          if (!userInTeam) {
-            workflow.errors.push({
-              step: 'Creación de tarea',
-              task: task.title,
-              error: 'El usuario asignado a la tarea no está en el equipo'
-            });
-            continue;
+          // Si hay userId en la tarea, verificar que esté en el equipo
+          if (task.userId) {
+            const userInTeam = workflow.teamMembers.find(m => m.id === task.userId);
+            
+            if (!userInTeam) {
+              workflow.errors.push({
+                step: 'Creación de tarea',
+                task: task.title,
+                error: 'El usuario asignado a la tarea no está en el equipo'
+              });
+              continue;
+            }
+            assignedUser = userInTeam;
           }
 
           const taskResponse = await axios.post(`${TASK_SERVICE}/tasks`, {
             title: task.title,
+            description: task.description,
+            status: task.status || 'pending',
             userId: task.userId,
-            projectId: projectId,
-            completed: false
+            projectId: projectId
           });
           
           workflow.tasksCreated.push({
             task: taskResponse.data,
-            assignedTo: { id: userInTeam.id, name: userInTeam.name }
+            assignedTo: assignedUser ? { id: assignedUser.id, name: assignedUser.name } : null
           });
         } catch (err: any) {
           workflow.errors.push({

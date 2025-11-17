@@ -4,20 +4,22 @@ import { sequelize } from './config/db';
 interface TaskAttributes {
   id: number;
   title: string;
-  completed: boolean;
-  userId: number;
+  description?: string;
+  status: string;
+  userId?: number;
   projectId: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-interface TaskCreationAttributes extends Optional<TaskAttributes, 'id' | 'completed'> {}
+interface TaskCreationAttributes extends Optional<TaskAttributes, 'id' | 'status' | 'userId'> {}
 
 class Task extends Model<TaskAttributes, TaskCreationAttributes> implements TaskAttributes {
   public id!: number;
   public title!: string;
-  public completed!: boolean;
-  public userId!: number;
+  public description?: string;
+  public status!: string;
+  public userId?: number;
   public projectId!: number;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -34,13 +36,17 @@ Task.init(
       type: DataTypes.STRING(200),
       allowNull: false,
     },
-    completed: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    status: {
+      type: DataTypes.STRING(50),
+      defaultValue: 'pending',
     },
     userId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       field: 'user_id'
     },
     projectId: {
@@ -77,8 +83,14 @@ export const taskModel = {
   },
 
   async create(taskData: any) {
-    const { title, userId, projectId } = taskData;
-    const task = await Task.create({ title, userId, projectId });
+    const { title, description, status, userId, projectId } = taskData;
+    const task = await Task.create({ 
+      title, 
+      description, 
+      status: status || 'pending',
+      userId, 
+      projectId 
+    } as any);
     return task;
   },
 

@@ -39,12 +39,13 @@ CREATE TABLE IF NOT EXISTS project_users (
 CREATE TABLE IF NOT EXISTS tasks (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
-    completed BOOLEAN DEFAULT FALSE,
-    user_id INT NOT NULL,
+    description TEXT,
+    status VARCHAR(50) DEFAULT 'pending',
+    user_id INT,
     project_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_task_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_task_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
     CONSTRAINT fk_task_project FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
 );
 

@@ -8,6 +8,8 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-EXPOSE 3000
+# Puerto por defecto (puede ser sobrescrito por variable de entorno en runtime)
+ENV PORT=3000
+EXPOSE $PORT
 
 CMD ["node", "dist/orchestratorService.js"]
